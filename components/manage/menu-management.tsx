@@ -1,168 +1,179 @@
-'use client'
+"use client";
 
-import { useState, useEffect } from 'react'
-import { Plus, Edit, Trash2, Save, X, Star } from 'lucide-react'
-import { formatPrice } from '@/lib/utils'
-import { Category, MenuItem } from '@prisma/client'
-import toast from 'react-hot-toast'
+import { useState, useEffect } from "react";
+import { Plus, Edit, Trash2, Save, X, Star } from "lucide-react";
+import { formatPrice } from "@/lib/utils";
+import { Category, MenuItem } from "@prisma/client";
+import toast from "react-hot-toast";
 
 interface MenuItemWithCategory extends MenuItem {
-  category: Category
+  category: Category;
 }
 
 interface MenuManagementProps {}
 
 export function MenuManagement({}: MenuManagementProps) {
-  const [menuItems, setMenuItems] = useState<MenuItemWithCategory[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
-  const [loading, setLoading] = useState(true)
-  const [editingItem, setEditingItem] = useState<string | null>(null)
-  const [showAddForm, setShowAddForm] = useState(false)
+  const [menuItems, setMenuItems] = useState<MenuItemWithCategory[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [editingItem, setEditingItem] = useState<string | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
   const [editForm, setEditForm] = useState({
-    name: '',
-    description: '',
-    price: '',
-    cost: '',
-    categoryId: '',
+    name: "",
+    description: "",
+    price: "",
+    cost: "",
+    categoryId: "",
     featured: false,
-    active: false
-  })
+    active: false,
+  });
 
   useEffect(() => {
-    fetchMenuItems()
-    fetchCategories()
-  }, [])
+    fetchMenuItems();
+    fetchCategories();
+  }, []);
 
   const fetchMenuItems = async () => {
     try {
-      const response = await fetch('/api/menu')
-      if (!response.ok) throw new Error('Failed to fetch menu items')
-      const data = await response.json()
-      setMenuItems(data)
+      const response = await fetch("/api/menu");
+      if (!response.ok) throw new Error("Failed to fetch menu items");
+      const data = await response.json();
+      setMenuItems(data);
     } catch (error) {
-      toast.error('Failed to load menu items')
+      toast.error("Failed to load menu items");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch('/api/categories')
-      if (!response.ok) throw new Error('Failed to fetch categories')
-      const data = await response.json()
-      setCategories(data)
+      const response = await fetch("/api/categories");
+      if (!response.ok) throw new Error("Failed to fetch categories");
+      const data = await response.json();
+      setCategories(data);
     } catch (error) {
-      toast.error('Failed to load categories')
+      toast.error("Failed to load categories");
     }
-  }
+  };
 
   const handleEdit = (item: MenuItemWithCategory) => {
-    setEditingItem(item.id)
+    setEditingItem(item.id);
     setEditForm({
       name: item.name,
-      description: item.description || '',
-      price: (item.price / 100).toString(),
-      cost: (item.cost / 100).toString(),
+      description: item.description || "",
+      price: (Number(item.price) / 100).toString(),
+      cost:
+        item.cost === null ? "" : (Number(item.cost) / 100).toString(),
       categoryId: item.categoryId,
       featured: item.featured,
-      active: item.active
-    })
-  }
+      active: item.active,
+    });
+  };
 
   const handleSave = async (itemId: string) => {
     try {
+      const costValue =
+        editForm.cost.trim() === ""
+          ? null
+          : Math.round(parseFloat(editForm.cost) * 100);
       const response = await fetch(`/api/menu/${itemId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...editForm,
           price: Math.round(parseFloat(editForm.price) * 100),
-          cost: Math.round(parseFloat(editForm.cost) * 100),
-        })
-      })
+          cost: costValue,
+        }),
+      });
 
-      if (!response.ok) throw new Error('Failed to update item')
+      if (!response.ok) throw new Error("Failed to update item");
 
-      await fetchMenuItems()
-      setEditingItem(null)
-      toast.success('Menu item updated successfully')
+      await fetchMenuItems();
+      setEditingItem(null);
+      toast.success("Menu item updated successfully");
     } catch (error) {
-      toast.error('Failed to update menu item')
+      toast.error("Failed to update menu item");
     }
-  }
+  };
 
   const handleAdd = async () => {
     try {
-      const response = await fetch('/api/menu', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const costValue =
+        editForm.cost.trim() === ""
+          ? null
+          : Math.round(parseFloat(editForm.cost) * 100);
+      const response = await fetch("/api/menu", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...editForm,
           price: Math.round(parseFloat(editForm.price) * 100),
-          cost: Math.round(parseFloat(editForm.cost) * 100),
-        })
-      })
+          cost: costValue,
+        }),
+      });
 
-      if (!response.ok) throw new Error('Failed to create item')
+      if (!response.ok) throw new Error("Failed to create item");
 
-      await fetchMenuItems()
-      setShowAddForm(false)
+      await fetchMenuItems();
+      setShowAddForm(false);
       setEditForm({
-        name: '',
-        description: '',
-        price: '',
-        cost: '',
-        categoryId: '',
+        name: "",
+        description: "",
+        price: "",
+        cost: "",
+        categoryId: "",
         featured: false,
-        active: false
-      })
-      toast.success('Menu item created successfully')
+        active: false,
+      });
+      toast.success("Menu item created successfully");
     } catch (error) {
-      toast.error('Failed to create menu item')
+      toast.error("Failed to create menu item");
     }
-  }
+  };
 
   const handleDelete = async (itemId: string) => {
-    if (!confirm('Are you sure you want to delete this menu item?')) return
+    if (!confirm("Are you sure you want to delete this menu item?")) return;
 
     try {
       const response = await fetch(`/api/menu/${itemId}`, {
-        method: 'DELETE'
-      })
+        method: "DELETE",
+      });
 
-      if (!response.ok) throw new Error('Failed to delete item')
+      if (!response.ok) throw new Error("Failed to delete item");
 
-      await fetchMenuItems()
-      toast.success('Menu item deleted successfully')
+      await fetchMenuItems();
+      toast.success("Menu item deleted successfully");
     } catch (error) {
-      toast.error('Failed to delete menu item')
+      toast.error("Failed to delete menu item");
     }
-  }
+  };
 
   const toggleAvailability = async (itemId: string, currentActive: boolean) => {
     try {
       const response = await fetch(`/api/menu/${itemId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ active: !currentActive })
-      })
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: !currentActive }),
+      });
 
-      if (!response.ok) throw new Error('Failed to update availability')
+      if (!response.ok) throw new Error("Failed to update availability");
 
-      await fetchMenuItems()
-      toast.success(`Item ${!currentActive ? 'enabled' : 'disabled'} successfully`)
+      await fetchMenuItems();
+      toast.success(
+        `Item ${!currentActive ? "enabled" : "disabled"} successfully`,
+      );
     } catch (error) {
-      toast.error('Failed to update availability')
+      toast.error("Failed to update availability");
     }
-  }
+  };
 
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
       </div>
-    )
+    );
   }
 
   return (
@@ -170,7 +181,9 @@ export function MenuManagement({}: MenuManagementProps) {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h3 className="text-lg font-medium text-gray-900">Menu Items</h3>
-          <p className="text-sm text-gray-600">Manage your restaurant's menu items and pricing</p>
+          <p className="text-sm text-gray-600">
+            Manage your restaurant's menu items and pricing
+          </p>
         </div>
         <button
           onClick={() => setShowAddForm(true)}
@@ -190,12 +203,16 @@ export function MenuManagement({}: MenuManagementProps) {
               type="text"
               placeholder="Item name"
               value={editForm.name}
-              onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+              onChange={(e) =>
+                setEditForm({ ...editForm, name: e.target.value })
+              }
               className="input"
             />
             <select
               value={editForm.categoryId}
-              onChange={(e) => setEditForm({ ...editForm, categoryId: e.target.value })}
+              onChange={(e) =>
+                setEditForm({ ...editForm, categoryId: e.target.value })
+              }
               className="input"
             >
               <option value="">Select category</option>
@@ -209,10 +226,19 @@ export function MenuManagement({}: MenuManagementProps) {
               type="number"
               placeholder="Price (RWF)"
               value={editForm.price}
-              onChange={(e) => setEditForm({ ...editForm, price: e.target.value })}
+              onChange={(e) =>
+                setEditForm({ ...editForm, price: e.target.value })
+              }
               onKeyDown={(e) => {
-                if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && e.key !== 'Tab' && e.key !== 'Backspace' && e.key !== 'Delete' && !e.key.match(/[0-9]/)) {
-                  e.preventDefault()
+                if (
+                  e.key !== "ArrowUp" &&
+                  e.key !== "ArrowDown" &&
+                  e.key !== "Tab" &&
+                  e.key !== "Backspace" &&
+                  e.key !== "Delete" &&
+                  !e.key.match(/[0-9]/)
+                ) {
+                  e.preventDefault();
                 }
               }}
               className="input"
@@ -221,10 +247,19 @@ export function MenuManagement({}: MenuManagementProps) {
               type="number"
               placeholder="Cost (RWF)"
               value={editForm.cost}
-              onChange={(e) => setEditForm({ ...editForm, cost: e.target.value })}
+              onChange={(e) =>
+                setEditForm({ ...editForm, cost: e.target.value })
+              }
               onKeyDown={(e) => {
-                if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && e.key !== 'Tab' && e.key !== 'Backspace' && e.key !== 'Delete' && !e.key.match(/[0-9]/)) {
-                  e.preventDefault()
+                if (
+                  e.key !== "ArrowUp" &&
+                  e.key !== "ArrowDown" &&
+                  e.key !== "Tab" &&
+                  e.key !== "Backspace" &&
+                  e.key !== "Delete" &&
+                  !e.key.match(/[0-9]/)
+                ) {
+                  e.preventDefault();
                 }
               }}
               className="input"
@@ -233,7 +268,9 @@ export function MenuManagement({}: MenuManagementProps) {
               <textarea
                 placeholder="Description"
                 value={editForm.description}
-                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, description: e.target.value })
+                }
                 className="input resize-none"
                 rows={2}
               />
@@ -243,7 +280,9 @@ export function MenuManagement({}: MenuManagementProps) {
                 <input
                   type="checkbox"
                   checked={editForm.featured}
-                  onChange={(e) => setEditForm({ ...editForm, featured: e.target.checked })}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, featured: e.target.checked })
+                  }
                   className="mr-2"
                 />
                 Featured item
@@ -252,7 +291,9 @@ export function MenuManagement({}: MenuManagementProps) {
                 <input
                   type="checkbox"
                   checked={editForm.active}
-                  onChange={(e) => setEditForm({ ...editForm, active: e.target.checked })}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, active: e.target.checked })
+                  }
                   className="mr-2"
                 />
                 Available
@@ -311,25 +352,36 @@ export function MenuManagement({}: MenuManagementProps) {
                           <input
                             type="text"
                             value={editForm.name}
-                            onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                            onChange={(e) =>
+                              setEditForm({ ...editForm, name: e.target.value })
+                            }
                             className="input text-sm"
                           />
                         ) : (
                           <div className="text-sm font-medium text-gray-900 flex items-center">
                             {item.name}
-                            {item.featured && <Star className="w-4 h-4 ml-1 text-yellow-400 fill-current" />}
+                            {item.featured && (
+                              <Star className="w-4 h-4 ml-1 text-yellow-400 fill-current" />
+                            )}
                           </div>
                         )}
                       </div>
                       {editingItem === item.id ? (
                         <textarea
                           value={editForm.description}
-                          onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                          onChange={(e) =>
+                            setEditForm({
+                              ...editForm,
+                              description: e.target.value,
+                            })
+                          }
                           className="input text-xs mt-1 resize-none"
                           rows={1}
                         />
                       ) : (
-                        <div className="text-sm text-gray-500">{item.description}</div>
+                        <div className="text-sm text-gray-500">
+                          {item.description}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -338,7 +390,9 @@ export function MenuManagement({}: MenuManagementProps) {
                   {editingItem === item.id ? (
                     <select
                       value={editForm.categoryId}
-                      onChange={(e) => setEditForm({ ...editForm, categoryId: e.target.value })}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, categoryId: e.target.value })
+                      }
                       className="input text-sm"
                     >
                       {categories.map((category) => (
@@ -348,7 +402,9 @@ export function MenuManagement({}: MenuManagementProps) {
                       ))}
                     </select>
                   ) : (
-                    <span className="text-sm text-gray-900">{item.category.name}</span>
+                    <span className="text-sm text-gray-900">
+                      {item.category.name}
+                    </span>
                   )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -356,16 +412,27 @@ export function MenuManagement({}: MenuManagementProps) {
                     <input
                       type="number"
                       value={editForm.price}
-                      onChange={(e) => setEditForm({ ...editForm, price: e.target.value })}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, price: e.target.value })
+                      }
                       onKeyDown={(e) => {
-                        if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && e.key !== 'Tab' && e.key !== 'Backspace' && e.key !== 'Delete' && !e.key.match(/[0-9]/)) {
-                          e.preventDefault()
+                        if (
+                          e.key !== "ArrowUp" &&
+                          e.key !== "ArrowDown" &&
+                          e.key !== "Tab" &&
+                          e.key !== "Backspace" &&
+                          e.key !== "Delete" &&
+                          !e.key.match(/[0-9]/)
+                        ) {
+                          e.preventDefault();
                         }
                       }}
                       className="input text-sm w-24"
                     />
                   ) : (
-                    <span className="text-sm text-gray-900">{formatPrice(item.price)}</span>
+                    <span className="text-sm text-gray-900">
+                      {formatPrice(Number(item.price))}
+                    </span>
                   )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -373,16 +440,29 @@ export function MenuManagement({}: MenuManagementProps) {
                     <input
                       type="number"
                       value={editForm.cost}
-                      onChange={(e) => setEditForm({ ...editForm, cost: e.target.value })}
+                      onChange={(e) =>
+                        setEditForm({ ...editForm, cost: e.target.value })
+                      }
                       onKeyDown={(e) => {
-                        if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown' && e.key !== 'Tab' && e.key !== 'Backspace' && e.key !== 'Delete' && !e.key.match(/[0-9]/)) {
-                          e.preventDefault()
+                        if (
+                          e.key !== "ArrowUp" &&
+                          e.key !== "ArrowDown" &&
+                          e.key !== "Tab" &&
+                          e.key !== "Backspace" &&
+                          e.key !== "Delete" &&
+                          !e.key.match(/[0-9]/)
+                        ) {
+                          e.preventDefault();
                         }
                       }}
                       className="input text-sm w-24"
                     />
                   ) : (
-                    <span className="text-sm text-gray-900">{formatPrice(item.cost)}</span>
+                    <span className="text-sm text-gray-900">
+                      {item.cost === null
+                        ? "—"
+                        : formatPrice(Number(item.cost))}
+                    </span>
                   )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -390,11 +470,11 @@ export function MenuManagement({}: MenuManagementProps) {
                     onClick={() => toggleAvailability(item.id, item.active)}
                     className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
                       item.active
-                        ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                        : 'bg-red-100 text-red-800 hover:bg-red-200'
+                        ? "bg-green-100 text-green-800 hover:bg-green-200"
+                        : "bg-red-100 text-red-800 hover:bg-red-200"
                     }`}
                   >
-                    {item.active ? 'Available' : 'Disabled'}
+                    {item.active ? "Available" : "Disabled"}
                   </button>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -438,9 +518,11 @@ export function MenuManagement({}: MenuManagementProps) {
 
       {menuItems.length === 0 && (
         <div className="text-center py-8">
-          <p className="text-gray-500">No menu items found. Add some items to get started!</p>
+          <p className="text-gray-500">
+            No menu items found. Add some items to get started!
+          </p>
         </div>
       )}
     </div>
-  )
+  );
 }
