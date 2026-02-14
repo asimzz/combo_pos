@@ -1,0 +1,212 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      UserRole @default(STAFF)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders Order[]
+  stockLogs RawMaterialStockLog[]
+
+  @@map("users")
+}
+
+model Category {
+  id          String @id @default(cuid())
+  name        String
+  description String?
+  active      Boolean @default(true)
+  sortOrder   Int     @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items MenuItem[]
+
+  @@map("categories")
+}
+
+model MenuItem {
+  id             String  @id @default(cuid())
+  menuNumber     String? @unique
+  name           String
+  description    String?
+  price          Decimal @db.Decimal(10, 2)
+  cost           Decimal? @db.Decimal(10, 2)
+  active         Boolean @default(true)
+  featured       Boolean @default(false)
+  sortOrder      Int     @default(0)
+  image          String?
+  stock          Int?
+  lowStockAlert  Int     @default(10)
+  qrCode         String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  orderItems OrderItem[]
+  rawMaterialUsage RawMaterialUsage[]
+
+  @@map("menu_items")
+}
+
+model Order {
+  id             String      @id @default(cuid())
+  orderNumber    String      @unique
+  status         OrderStatus @default(PENDING)
+  customerName   String?
+  customerPhone  String?
+  notes          String?
+  subtotal       Decimal     @db.Decimal(10, 2)
+  taxAmount      Decimal     @db.Decimal(10, 2)
+  serviceCharge  Decimal     @db.Decimal(10, 2) @default(0)
+  discount       Decimal     @db.Decimal(10, 2) @default(0)
+  total          Decimal     @db.Decimal(10, 2)
+  paymentMethod  PaymentMethod
+  paymentStatus  PaymentStatus @default(PENDING)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  orderItems OrderItem[]
+  payments   Payment[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  quantity  Int
+  unitPrice Decimal @db.Decimal(10, 2)
+  total     Decimal @db.Decimal(10, 2)
+  notes     String?
+  createdAt DateTime @default(now())
+
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItemId String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+
+  @@map("order_items")
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  amount        Decimal       @db.Decimal(10, 2)
+  method        PaymentMethod
+  status        PaymentStatus @default(COMPLETED)
+  transactionId String?
+  notes         String?
+  createdAt     DateTime      @default(now())
+
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id])
+
+  @@map("payments")
+}
+
+model RawMaterial {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  unit        String
+  stock       Decimal  @db.Decimal(10, 3)
+  cost        Decimal  @db.Decimal(10, 2)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  usage RawMaterialUsage[]
+  stockLogs RawMaterialStockLog[]
+
+  @@map("raw_materials")
+}
+
+model RawMaterialUsage {
+  id             String   @id @default(cuid())
+  quantity       Decimal  @db.Decimal(10, 3)
+  createdAt      DateTime @default(now())
+
+  rawMaterialId  String
+  rawMaterial    RawMaterial @relation(fields: [rawMaterialId], references: [id])
+  menuItemId     String
+  menuItem       MenuItem @relation(fields: [menuItemId], references: [id])
+
+  @@map("raw_material_usage")
+}
+
+model RawMaterialStockLog {
+  id            String         @id @default(cuid())
+  type          StockLogType
+  quantity      Decimal        @db.Decimal(10, 3)
+  reason        String?
+  createdAt     DateTime       @default(now())
+
+  rawMaterialId String
+  rawMaterial   RawMaterial @relation(fields: [rawMaterialId], references: [id])
+  userId        String
+  user          User @relation(fields: [userId], references: [id])
+
+  @@map("raw_material_stock_logs")
+}
+
+model DailySales {
+  id          String   @id @default(cuid())
+  date        DateTime @unique @db.Date
+  totalOrders Int      @default(0)
+  totalSales  Decimal  @db.Decimal(10, 2) @default(0)
+  totalTax    Decimal  @db.Decimal(10, 2) @default(0)
+  totalTips   Decimal  @db.Decimal(10, 2) @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("daily_sales")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  STAFF
+}
+
+enum OrderStatus {
+  PENDING
+  PREPARING
+  READY
+  SERVED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  MOMO
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum StockLogType {
+  IN
+  OUT
+  ADJUSTMENT
+  WASTE
+}
