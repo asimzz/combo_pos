@@ -296,9 +296,21 @@ export function OrderManagement() {
 
               {/* Payment Info */}
               <div className="flex justify-between items-center pt-4 border-t border-gray-100">
-                <span className="text-sm text-gray-600">
-                  Payment: <span className="font-medium capitalize">{order.paymentMethod.toLowerCase()}</span>
-                </span>
+                <div className="flex items-center space-x-3">
+                  <span className="text-sm text-gray-600">
+                    Payment: <span className="font-medium capitalize">{order.paymentMethod.toLowerCase()}</span>
+                  </span>
+                  <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                    order.paymentStatus === 'COMPLETED'
+                      ? 'bg-green-100 text-green-700'
+                      : order.paymentStatus === 'REFUNDED'
+                        ? 'bg-red-100 text-red-700'
+                        : 'bg-yellow-100 text-yellow-700'
+                  }`}>
+                    {order.paymentStatus === 'COMPLETED' ? 'Paid' :
+                     order.paymentStatus === 'REFUNDED' ? 'Refunded' : 'Unpaid'}
+                  </span>
+                </div>
                 <span className="text-sm text-gray-600">
                   Staff: <span className="font-medium">{order.user.name}</span>
                 </span>

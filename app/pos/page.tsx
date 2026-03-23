@@ -100,6 +100,16 @@ export default function POSPage() {
     )
   }
 
+  const updateTakeaway = (menuItemId: string, takeaway: boolean, takeawayCharge: number) => {
+    setCart(prevCart =>
+      prevCart.map(item =>
+        item.menuItemId === menuItemId
+          ? { ...item, takeaway, takeawayCharge: takeaway ? takeawayCharge : 0 }
+          : item
+      )
+    )
+  }
+
   const clearCart = () => {
     setCart([])
   }
@@ -112,13 +122,24 @@ export default function POSPage() {
     discount: number
   }) => {
     try {
+      const takeawayTotal = cart.reduce((sum, item) => sum + (item.takeaway ? (item.takeawayCharge || 0) : 0), 0)
+      const takeawayItems = cart.filter(i => i.takeaway).map(i => i.name).join(', ')
+
       const orderPayload = {
         items: cart.map(item => ({
           menuItemId: item.menuItemId,
           quantity: item.quantity,
-          notes: item.notes,
+          notes: [
+            item.notes,
+            item.takeaway ? `[TAKEAWAY${item.takeawayCharge ? ` +${item.takeawayCharge} RWF` : ''}]` : null,
+          ].filter(Boolean).join(' ') || undefined,
         })),
         ...orderData,
+        serviceCharge: takeawayTotal,
+        notes: [
+          orderData.notes,
+          takeawayItems ? `Takeaway: ${takeawayItems}` : null,
+        ].filter(Boolean).join(' | ') || undefined,
       }
 
       const response = await fetch('/api/orders', {
@@ -185,6 +206,7 @@ export default function POSPage() {
             onRemoveItem={removeFromCart}
             onUpdateQuantity={updateQuantity}
             onUpdateNotes={updateNotes}
+            onUpdateTakeaway={updateTakeaway}
             onClearCart={clearCart}
             onSubmitOrder={handleOrderSubmit}
           />

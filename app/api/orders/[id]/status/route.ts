@@ -8,6 +8,15 @@ const updateStatusSchema = z.object({
   status: z.enum(['PENDING', 'PREPARING', 'READY', 'SERVED', 'CANCELLED']),
 })
 
+// Valid status transitions
+const VALID_TRANSITIONS: Record<string, string[]> = {
+  PENDING: ['PREPARING', 'CANCELLED'],
+  PREPARING: ['READY', 'CANCELLED'],
+  READY: ['SERVED'],
+  SERVED: [],
+  CANCELLED: [],
+}
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -21,7 +30,6 @@ export async function PATCH(
     const body = await request.json()
     const { status } = updateStatusSchema.parse(body)
 
-    // First get the current order to check previous status
     const currentOrder = await prisma.order.findUnique({
       where: { id: params.id },
       include: {
@@ -41,44 +49,77 @@ export async function PATCH(
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     }
 
-    // Update order status and handle stock deduction in a transaction
-    const order = await prisma.$transaction(async (prisma) => {
-      // If changing status to SERVED, deduct stock
-      if (status === 'SERVED' && currentOrder.status !== 'SERVED') {
-        for (const orderItem of currentOrder.orderItems) {
-          await prisma.menuItem.update({
-            where: { id: orderItem.menuItemId },
-            data: {
-              stock: {
-                decrement: orderItem.quantity
-              }
-            }
-          })
-        }
-      }
+    // Validate transition
+    const allowed = VALID_TRANSITIONS[currentOrder.status] || []
+    if (!allowed.includes(status)) {
+      return NextResponse.json(
+        { error: `Cannot change from ${currentOrder.status} to ${status}` },
+        { status: 400 }
+      )
+    }
 
-      // Update the order status
-      return await prisma.order.update({
-        where: { id: params.id },
-        data: { status },
-        include: {
-          orderItems: {
-            include: {
-              menuItem: {
-                include: {
-                  category: true
-                }
+    // CANCELLED: refund stock since it was deducted at creation
+    if (status === 'CANCELLED') {
+      await Promise.all(
+        currentOrder.orderItems.map((orderItem) =>
+          prisma.menuItem.update({
+            where: { id: orderItem.menuItemId },
+            data: { stock: { increment: orderItem.quantity } }
+          })
+        )
+      )
+    }
+
+    // SERVED: mark payment as completed
+    if (status === 'SERVED') {
+      const existingPayment = await prisma.payment.findFirst({
+        where: { orderId: params.id }
+      })
+
+      if (!existingPayment) {
+        await prisma.payment.create({
+          data: {
+            amount: currentOrder.total,
+            method: currentOrder.paymentMethod,
+            status: 'COMPLETED',
+            orderId: params.id,
+          }
+        })
+      } else {
+        await prisma.payment.update({
+          where: { id: existingPayment.id },
+          data: { status: 'COMPLETED' }
+        })
+      }
+    }
+
+    // Update the order status and payment status
+    const order = await prisma.order.update({
+      where: { id: params.id },
+      data: {
+        status,
+        paymentStatus: status === 'SERVED' ? 'COMPLETED' :
+                       status === 'CANCELLED' ? 'REFUNDED' :
+                       currentOrder.paymentStatus,
+      },
+      include: {
+        orderItems: {
+          include: {
+            menuItem: {
+              include: {
+                category: true
               }
-            }
-          },
-          user: {
-            select: {
-              name: true,
-              email: true
             }
           }
+        },
+        payments: true,
+        user: {
+          select: {
+            name: true,
+            email: true
+          }
         }
-      })
+      }
     })
 
     return NextResponse.json(order)

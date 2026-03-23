@@ -18,6 +18,8 @@ const prisma = new PrismaClient();
 async function main() {
   // Clear existing data in correct order (respecting foreign key constraints)
   console.log("Clearing existing data...");
+  await prisma.expense.deleteMany({});
+  await prisma.expenseCategory.deleteMany({});
   await prisma.salaryPayment.deleteMany({});
   await prisma.monthlySalarySummary.deleteMany({});
   await prisma.payment.deleteMany({});
@@ -860,6 +862,26 @@ async function main() {
   });
 
   console.log("Sample salary payments created!");
+
+  // Create expense categories
+  console.log("Creating expense categories...");
+  const expenseCategories = [
+    "Food Purchases",
+    "Rent",
+    "Utilities",
+    "Equipment",
+    "Cleaning Supplies",
+    "Transport",
+    "Marketing",
+    "Maintenance",
+    "Other",
+  ];
+
+  for (const name of expenseCategories) {
+    await prisma.expenseCategory.create({ data: { name } });
+  }
+  console.log("Expense categories created!");
+
   console.log("Database seeded successfully!");
   console.log("Admin user: admin@combo.com / admin123 (Salary: 150,000 RWF)");
   console.log(

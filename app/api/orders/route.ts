@@ -3,10 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
-  generateOrderNumber,
   generateDailyOrderNumber,
-  calculateTax,
-  calculateServiceCharge,
 } from "@/lib/utils";
 import { z } from "zod";
 
@@ -23,6 +20,7 @@ const createOrderSchema = z.object({
   notes: z.string().optional(),
   paymentMethod: z.enum(["CASH", "MOMO"]),
   discount: z.number().min(0).default(0),
+  serviceCharge: z.number().min(0).default(0),
 });
 
 export async function POST(request: NextRequest) {
@@ -48,7 +46,6 @@ export async function POST(request: NextRequest) {
       if (!userByEmail) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
-      // Replace session user id for order creation
       (session.user as { id: string }).id = userByEmail.id;
     }
 
@@ -57,12 +54,15 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const data = createOrderSchema.parse(body);
 
-    // Get menu items to calculate totals and check stock
-    const menuItems = await prisma.menuItem.findMany({
-      where: {
-        id: { in: data.items.map((item) => item.menuItemId) },
-      },
-    });
+    // Fetch menu items and generate order number in parallel
+    const [menuItems, dailyOrderNumber] = await Promise.all([
+      prisma.menuItem.findMany({
+        where: {
+          id: { in: data.items.map((item) => item.menuItemId) },
+        },
+      }),
+      generateDailyOrderNumber(prisma),
+    ]);
 
     // Validate stock availability and calculate totals
     let subtotal = 0;
@@ -91,13 +91,14 @@ export async function POST(request: NextRequest) {
       };
     });
 
-    const total = subtotal - data.discount;
+    const total = subtotal + data.serviceCharge - data.discount;
 
-    // Generate daily incremental order number
-    const dailyOrderNumber = await generateDailyOrderNumber(prisma);
+    // Run stock deductions and order creation in parallel (single round trip)
+    const stockUpdates = data.items.map((item) =>
+      prisma.$executeRaw`UPDATE "menu_items" SET "stock" = "stock" - ${item.quantity} WHERE "id" = ${item.menuItemId}`
+    );
 
-    // Create order without deducting stock (stock will be deducted when order is SERVED)
-    const order = await prisma.order.create({
+    const orderCreate = prisma.order.create({
       data: {
         orderNumber: dailyOrderNumber,
         userId: orderUserId,
@@ -106,21 +107,14 @@ export async function POST(request: NextRequest) {
         notes: data.notes,
         subtotal,
         taxAmount: 0,
-        serviceCharge: 0,
+        serviceCharge: data.serviceCharge,
         discount: data.discount,
         total,
         paymentMethod: data.paymentMethod,
-        paymentStatus: "COMPLETED",
-        status: "PREPARING",
+        paymentStatus: "PENDING",
+        status: "PENDING",
         orderItems: {
           create: orderItems,
-        },
-        payments: {
-          create: {
-            amount: total,
-            method: data.paymentMethod,
-            status: "COMPLETED",
-          },
         },
       },
       include: {
@@ -138,6 +132,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    const results = await Promise.all([...stockUpdates, orderCreate]);
+    const order = results[results.length - 1];
+
     return NextResponse.json(order);
   } catch (error) {
     console.error("Error creating order:", error);
@@ -147,8 +144,9 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
+    const message = error instanceof Error ? error.message : "Failed to create order";
     return NextResponse.json(
-      { error: "Failed to create order" },
+      { error: message },
       { status: 500 },
     );
   }
@@ -172,6 +170,7 @@ export async function GET() {
             },
           },
         },
+        payments: true,
         user: {
           select: {
             name: true,

@@ -65,6 +65,7 @@ export default function SalaryManagement() {
   const [selectedEmployee, setSelectedEmployee] =
     useState<EmployeeDetail | null>(null);
   const [loading, setLoading] = useState(false);
+  const [modalLoading, setModalLoading] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(0);
   const [currentYear, setCurrentYear] = useState(0);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -181,7 +182,8 @@ export default function SalaryManagement() {
 
   const fetchEmployeeDetail = async (userId: string) => {
     try {
-      setLoading(true);
+      setSelectedEmployee(null);
+      setModalLoading(true);
       const response = await fetch(
         `/api/salaries/${userId}?year=${currentYear}`,
       );
@@ -193,7 +195,7 @@ export default function SalaryManagement() {
       console.error("Error fetching employee details:", error);
       toast.error("Failed to fetch employee details");
     } finally {
-      setLoading(false);
+      setModalLoading(false);
     }
   };
 
@@ -221,19 +223,19 @@ export default function SalaryManagement() {
 
   const fetchPaymentHistory = async (userId: string, employeeName: string) => {
     try {
-      setLoading(true);
+      setHistoryEmployeeName(employeeName);
+      setShowPaymentHistory(true);
+      setModalLoading(true);
       const response = await fetch(`/api/salaries/payments?userId=${userId}`);
       if (!response.ok) throw new Error("Failed to fetch payment history");
 
       const data = await response.json();
       setPaymentHistory(data);
-      setHistoryEmployeeName(employeeName);
-      setShowPaymentHistory(true);
     } catch (error) {
       console.error("Error fetching payment history:", error);
       toast.error("Failed to fetch payment history");
     } finally {
-      setLoading(false);
+      setModalLoading(false);
     }
   };
 
@@ -538,16 +540,16 @@ export default function SalaryManagement() {
       )}
 
       {/* Employee Detail Modal */}
-      {selectedEmployee && (
+      {(selectedEmployee || modalLoading) && !showPaymentHistory && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="px-6 py-4 border-b border-gray-200">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold text-gray-900">
-                  Salary Details - {selectedEmployee.employee.name}
+                  {selectedEmployee ? `Salary Details - ${selectedEmployee.employee.name}` : 'Loading...'}
                 </h3>
                 <button
-                  onClick={() => setSelectedEmployee(null)}
+                  onClick={() => { setSelectedEmployee(null); setModalLoading(false); }}
                   className="text-gray-400 hover:text-gray-600"
                 >
                   <X className="w-6 h-6" />
@@ -555,6 +557,12 @@ export default function SalaryManagement() {
               </div>
             </div>
 
+            {modalLoading && !selectedEmployee ? (
+              <div className="p-8 text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
+                <p className="text-gray-600 mt-2">Loading details...</p>
+              </div>
+            ) : selectedEmployee && (
             <div className="px-6 py-4">
               {/* Yearly Summary */}
               <div className="mb-6 p-4 bg-gray-50 rounded-lg">
@@ -632,6 +640,7 @@ export default function SalaryManagement() {
                 ))}
               </div>
             </div>
+            )}
           </div>
         </div>
       )}
@@ -665,7 +674,7 @@ export default function SalaryManagement() {
             </div>
 
             <div className="overflow-y-auto max-h-[70vh]">
-              {loading ? (
+              {modalLoading ? (
                 <div className="p-8 text-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
                   <p className="text-gray-600 mt-2">Loading payment history...</p>

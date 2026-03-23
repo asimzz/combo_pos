@@ -2,14 +2,15 @@
 
 import { useState } from 'react'
 import { CartItem } from '@/types'
-import { formatPrice, calculateTax, calculateServiceCharge } from '@/lib/utils'
-import { Minus, Plus, X, DollarSign } from 'lucide-react'
+import { formatPrice } from '@/lib/utils'
+import { Minus, Plus, X, DollarSign, PackageCheck } from 'lucide-react'
 
 interface CartProps {
   cart: CartItem[]
   onRemoveItem: (menuItemId: string) => void
   onUpdateQuantity: (menuItemId: string, quantity: number) => void
   onUpdateNotes: (menuItemId: string, notes: string) => void
+  onUpdateTakeaway: (menuItemId: string, takeaway: boolean, takeawayCharge: number) => void
   onClearCart: () => void
   onSubmitOrder: (orderData: {
     customerName?: string
@@ -25,6 +26,7 @@ export function Cart({
   onRemoveItem,
   onUpdateQuantity,
   onUpdateNotes,
+  onUpdateTakeaway,
   onClearCart,
   onSubmitOrder,
 }: CartProps) {
@@ -36,7 +38,8 @@ export function Cart({
   const [showCheckout, setShowCheckout] = useState(false)
 
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0)
-  const total = subtotal - discount
+  const takeawayTotal = cart.reduce((sum, item) => sum + (item.takeaway ? (item.takeawayCharge || 0) : 0), 0)
+  const total = subtotal + takeawayTotal - discount
 
   const handleSubmit = () => {
     if (cart.length === 0) return
@@ -119,7 +122,7 @@ export function Cart({
                 </button>
               </div>
               <span className="font-semibold">
-                {formatPrice(item.price * item.quantity)}
+                {formatPrice(item.price * item.quantity + (item.takeaway ? (item.takeawayCharge || 0) : 0))}
               </span>
             </div>
 
@@ -128,16 +131,46 @@ export function Cart({
               placeholder="Add notes..."
               value={item.notes || ''}
               onChange={(e) => onUpdateNotes(item.menuItemId, e.target.value)}
-              className="input text-sm"
+              className="input text-sm mb-2"
             />
+
+            {/* Takeaway */}
+            <div className="flex items-center space-x-2">
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={item.takeaway || false}
+                  onChange={(e) => onUpdateTakeaway(item.menuItemId, e.target.checked, item.takeawayCharge || 0)}
+                  className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
+                <PackageCheck className="w-3.5 h-3.5 text-gray-500" />
+                <span className="text-xs text-gray-600">Takeaway</span>
+              </label>
+              {item.takeaway && (
+                <input
+                  type="number"
+                  placeholder="Charge (RWF)"
+                  min="0"
+                  value={item.takeawayCharge || ''}
+                  onChange={(e) => onUpdateTakeaway(item.menuItemId, true, Number(e.target.value) || 0)}
+                  className="input text-xs w-28 py-1"
+                />
+              )}
+            </div>
           </div>
         ))}
       </div>
 
       {/* Order Summary */}
-      <div className="p-4 border-t border-gray-200 space-y-2">
+      <div className="p-4 border-t border-gray-200 space-y-1">
+        {takeawayTotal > 0 && (
+          <div className="flex justify-between text-sm text-gray-600">
+            <span>Takeaway charges:</span>
+            <span>{formatPrice(takeawayTotal)}</span>
+          </div>
+        )}
         {discount > 0 && (
-          <div className="flex justify-between text-success">
+          <div className="flex justify-between text-sm text-success">
             <span>Discount:</span>
             <span>-{formatPrice(discount)}</span>
           </div>

@@ -21,6 +21,8 @@ model User {
   orders Order[]
   stockLogs RawMaterialStockLog[]
   salaryPayments SalaryPayment[]
+  expenses Expense[]
+  creditEntries CreditEntry[]
 
   @@map("users")
 }
@@ -207,6 +209,63 @@ model MonthlySalarySummary {
 
   @@unique([userId, month, year])
   @@map("monthly_salary_summary")
+}
+
+model ExpenseCategory {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  expenses Expense[]
+
+  @@map("expense_categories")
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  amount      Float
+  description String?
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  categoryId String
+  category   ExpenseCategory @relation(fields: [categoryId], references: [id])
+
+  userId String
+  user   User @relation(fields: [userId], references: [id])
+
+  @@map("expenses")
+}
+
+model CreditEntry {
+  id            String   @id @default(cuid())
+  customerName  String
+  customerPhone String?
+  amount        Float
+  paidAmount    Float    @default(0)
+  description   String?
+  settled       Boolean  @default(false)
+  settledAt     DateTime?
+  createdAt     DateTime @default(now())
+
+  userId String
+  user   User @relation(fields: [userId], references: [id])
+
+  payments CreditPayment[]
+
+  @@map("credit_entries")
+}
+
+model CreditPayment {
+  id        String   @id @default(cuid())
+  amount    Float
+  createdAt DateTime @default(now())
+
+  creditEntryId String
+  creditEntry   CreditEntry @relation(fields: [creditEntryId], references: [id], onDelete: Cascade)
+
+  @@map("credit_payments")
 }
 
 model DailyOrderCounter {
