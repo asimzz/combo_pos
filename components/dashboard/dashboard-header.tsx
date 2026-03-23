@@ -1,7 +1,7 @@
 'use client'
 
 import { useSession, signOut } from 'next-auth/react'
-import { LogOut, ArrowLeft, Settings, BarChart3, ClipboardList } from 'lucide-react'
+import { LogOut, ArrowLeft, Settings, BarChart3, ClipboardList, Cloud } from 'lucide-react'
 import Link from 'next/link'
 
 export function DashboardHeader() {
@@ -61,6 +61,16 @@ export function DashboardHeader() {
               <ClipboardList className="w-4 h-4 mr-2" />
               Orders
             </Link>
+
+            {session?.user?.role !== 'STAFF' && (
+              <Link
+                href="/sync"
+                className="btn btn-outline btn-sm"
+              >
+                <Cloud className="w-4 h-4 mr-2" />
+                Sync
+              </Link>
+            )}
 
             {session?.user?.role === 'ADMIN' && (
               <Link

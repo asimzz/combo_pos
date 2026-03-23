@@ -20,48 +20,8 @@ export function KitchenReceipt({
 
   const handlePrint = () => {
     if (printRef.current) {
-      const printWindow = window.open("", "_blank");
-      if (printWindow) {
-        printWindow.document.write(`
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <title>Kitchen Order - ${order.orderNumber}</title>
-              <style>
-                body {
-                  font-family: 'Courier New', monospace;
-                  margin: 0;
-                  padding: 20px;
-                  font-size: 12px;
-                  line-height: 1.4;
-                }
-                .receipt { max-width: 300px; }
-                .header { text-align: center; margin-bottom: 20px; }
-                .header img { max-height: 40px; margin: 0 auto 10px; }
-                .order-number { font-size: 18px; font-weight: bold; }
-                .divider { border-bottom: 1px dashed #000; margin: 10px 0; }
-                .item { margin-bottom: 15px; }
-                .item-name { font-weight: bold; font-size: 14px; }
-                .item-details { margin-left: 10px; }
-                .notes { font-style: italic; margin-top: 5px; }
-                .timestamp { text-align: center; margin-top: 20px; font-size: 10px; }
-                .priority-high { border: 2px solid #ff0000; padding: 5px; }
-                .priority-normal { border: 1px solid #000; padding: 5px; }
-                @media print {
-                  body { margin: 0; padding: 10px; }
-                }
-              </style>
-            </head>
-            <body>
-              ${printRef.current.innerHTML}
-            </body>
-          </html>
-        `);
-        printWindow.document.close();
-        printWindow.print();
-        printWindow.close();
-        if (onPrint) onPrint();
-      }
+      window.print();
+      if (onPrint) onPrint();
     }
   };
 
@@ -83,111 +43,143 @@ export function KitchenReceipt({
     new Date().getTime() - new Date(order.createdAt).getTime() > 15 * 60 * 1000; // 15 minutes
 
   return (
-    <div className="space-y-4">
-      {showPrintButton && (
-        <div className="flex justify-end">
-          <button
-            onClick={handlePrint}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2"
-          >
-            <Printer className="w-4 h-4" />
-            <span>Print Kitchen Order</span>
-          </button>
-        </div>
-      )}
-
-      <div
-        ref={printRef}
-        className={`receipt bg-white p-6 border-2 max-w-sm mx-auto ${
-          isUrgent
-            ? "priority-high border-red-500"
-            : "priority-normal border-gray-300"
-        }`}
-      >
-        {/* Header */}
-        <div className="header text-center mb-6">
-          <div className="mb-3">
-            <img
-              src="/logo.svg"
-              alt="Combo Restaurant"
-              className="mx-auto h-12 w-auto"
-            />
-          </div>
-          <div className="text-lg font-semibold mb-2">KITCHEN ORDER</div>
-          {isUrgent && (
-            <div className="bg-red-500 text-white px-3 py-1 text-sm font-bold rounded">
-              URGENT - DELAYED ORDER
-            </div>
-          )}
-        </div>
-
-        {/* Order Details */}
-        <div className="mb-6">
-          <div className="order-number text-xl font-bold text-center mb-2">
-            ORDER #{order.orderNumber}
-          </div>
-          <div className="text-center text-sm text-gray-600">
-            {formatDate(new Date(order.createdAt))}
-          </div>
-          <div className="text-center text-sm font-medium">
-            Server: {order.user.name}
-          </div>
-          {order.customerName && (
-            <div className="text-center text-sm">
-              Customer: {order.customerName}
-            </div>
-          )}
-        </div>
-
-        <div className="divider"></div>
-
-        {/* Items by Category */}
-        {Object.entries(itemsByCategory).map(([categoryName, items]) => (
-          <div key={categoryName} className="mb-6">
-            <div className="font-bold text-sm uppercase text-gray-700 mb-3 border-b border-gray-300 pb-1">
-              {categoryName}
-            </div>
-            {items.map((item, index) => (
-              <div key={`${item.id}-${index}`} className="item mb-4">
-                <div className="flex justify-between items-start">
-                  <div className="flex-1">
-                    <div className="item-name text-lg font-medium">
-                      {item.quantity}x {item.menuItem.name}
-                    </div>
-                    {item.notes && (
-                      <div className="notes text-sm text-red-600 font-medium mt-1">
-                        ⚠ SPECIAL: {item.notes}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ))}
-
-        <div className="divider"></div>
-
-        {/* Order Notes */}
-        {order.notes && (
-          <div className="mb-4">
-            <div className="font-bold text-sm uppercase mb-2">ORDER NOTES:</div>
-            <div className="text-sm bg-yellow-50 p-3 border border-yellow-200 rounded">
-              {order.notes}
-            </div>
+    <>
+      <div className="space-y-4">
+        {showPrintButton && (
+          <div className="flex justify-end no-print">
+            <button
+              onClick={handlePrint}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2"
+            >
+              <Printer className="w-4 h-4" />
+              <span>Print Kitchen Order</span>
+            </button>
           </div>
         )}
 
-        {/* Summary */}
-        <div className="text-center mb-4">
-          <div className="text-lg font-bold">
-            Total Items:{" "}
-            {order.orderItems.reduce((sum, item) => sum + item.quantity, 0)}
+        <div
+          ref={printRef}
+          className={`print-receipt receipt bg-white p-6 border-2 max-w-sm mx-auto text-[11px] ${
+            isUrgent
+              ? "priority-high border-red-500"
+              : "priority-normal border-gray-300"
+          }`}
+        >
+          {/* Header */}
+          <div className="header text-center mb-6">
+            <div className="mb-3">
+              <img
+                src="/logo.svg"
+                alt="Combo Restaurant"
+                className="mx-auto h-12 w-auto"
+              />
+            </div>
+            <div className="text-base font-semibold mb-2">KITCHEN ORDER</div>
+            {isUrgent && (
+              <div className="bg-red-500 text-white px-3 py-1 text-xs font-bold rounded">
+                URGENT - DELAYED ORDER
+              </div>
+            )}
           </div>
-        </div>
 
-        <div className="divider"></div>
+          {/* Order Details */}
+          <div className="mb-6">
+            <div className="order-number text-sm font-bold text-center mb-2">
+              ORDER #{order.orderNumber}
+            </div>
+            <div className="text-center text-xs text-gray-600">
+              {formatDate(new Date(order.createdAt))}
+            </div>
+            <div className="text-center text-xs font-medium">
+              Server: {order.user.name}
+            </div>
+            {order.customerName && (
+              <div className="text-center text-xs">
+                Customer: {order.customerName}
+              </div>
+            )}
+          </div>
+
+          <div className="divider"></div>
+
+          {/* Items by Category */}
+          {Object.entries(itemsByCategory).map(([categoryName, items]) => (
+            <div key={categoryName} className="mb-6">
+              <div className="font-bold text-xs uppercase text-gray-700 mb-3 border-b border-gray-300 pb-1">
+                {categoryName}
+              </div>
+              {items.map((item, index) => (
+                <div key={`${item.id}-${index}`} className="item mb-4">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <div className="item-name text-xs font-medium">
+                        {item.quantity}x {item.menuItem.name}
+                      </div>
+                      {item.notes && (
+                        <div className="notes text-xs text-red-600 font-medium mt-1">
+                          ⚠ SPECIAL: {item.notes}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+
+          <div className="divider"></div>
+
+          {/* Order Notes */}
+          {order.notes && (
+            <div className="mb-4">
+              <div className="font-bold text-sm uppercase mb-2">
+                ORDER NOTES:
+              </div>
+              <div className="text-sm bg-yellow-50 p-3 border border-yellow-200 rounded">
+                {order.notes}
+              </div>
+            </div>
+          )}
+
+          {/* Summary */}
+          <div className="text-center mb-4">
+            <div className="text-base font-bold">
+              Total Items:{" "}
+              {order.orderItems.reduce((sum, item) => sum + item.quantity, 0)}
+            </div>
+          </div>
+
+          <div className="divider"></div>
+        </div>
       </div>
-    </div>
+      <style jsx global>{`
+        @media print {
+          body {
+            margin: 0;
+            padding: 0;
+          }
+          body * {
+            visibility: hidden;
+          }
+          .print-receipt,
+          .print-receipt * {
+            visibility: visible;
+          }
+          .print-receipt {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 58mm;
+            max-width: 58mm;
+            padding: 2mm !important;
+            border: none !important;
+            box-shadow: none !important;
+          }
+          .no-print {
+            display: none !important;
+          }
+        }
+      `}</style>
+    </>
   );
 }

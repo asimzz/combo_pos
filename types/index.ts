@@ -1,4 +1,4 @@
-import { User, Category, MenuItem, Order, OrderItem, Payment } from '@prisma/client'
+import { User, Category, MenuItem, Order, OrderItem, Payment, SalaryPayment } from '@prisma/client'
 
 export type UserWithOrders = User & {
   orders: Order[]
@@ -48,3 +48,27 @@ export type DashboardStats = {
 
 export type PaymentMethod = 'CASH' | 'MOMO'
 export type OrderStatus = 'PENDING' | 'PREPARING' | 'READY' | 'SERVED' | 'CANCELLED'
+
+export type UserWithSalaryInfo = User & {
+  totalPaid: number
+  balance: number
+  salaryPayments: SalaryPayment[]
+}
+
+export type MonthlySalaryData = {
+  month: number
+  monthName: string
+  monthlySalary: number
+  totalPaid: number
+  balance: number
+  payments: SalaryPayment[]
+  paymentCount: number
+}
+
+export type SalaryPaymentWithUser = SalaryPayment & {
+  user: {
+    name: string
+    email: string
+    role: string
+  }
+}

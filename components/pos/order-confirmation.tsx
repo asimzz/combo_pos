@@ -145,7 +145,7 @@ export function OrderConfirmation({
             {order.discount > 0 && (
               <div className="flex justify-between text-xs text-success">
                 <span>Discount:</span>
-                <span>-{formatPrice(Number(order.discount))}</span>
+                <span>-{formatPrice(order.discount)}</span>
               </div>
             )}
             <div className="flex justify-between text-xs font-bold">

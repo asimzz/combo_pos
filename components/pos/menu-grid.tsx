@@ -76,7 +76,6 @@ export function MenuGrid({ categories, onAddToCart }: MenuGridProps) {
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
                       <div className="flex items-center space-x-2">
-                        <span className="text-xs opacity-75">#{item.menuNumber || 'N/A'}</span>
                         {isOutOfStock && (
                           <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-bold">
                             OUT OF STOCK

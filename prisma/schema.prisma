@@ -14,11 +14,13 @@ model User {
   password  String
   role      UserRole @default(STAFF)
   active    Boolean  @default(true)
+  monthlySalary Float? @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   orders Order[]
   stockLogs RawMaterialStockLog[]
+  salaryPayments SalaryPayment[]
 
   @@map("users")
 }
@@ -39,11 +41,10 @@ model Category {
 
 model MenuItem {
   id             String  @id @default(cuid())
-  menuNumber     String? @unique
   name           String
   description    String?
-  price          Decimal @db.Decimal(10, 2)
-  cost           Decimal? @db.Decimal(10, 2)
+  price          Float
+  cost           Float?
   active         Boolean @default(true)
   featured       Boolean @default(false)
   sortOrder      Int     @default(0)
@@ -70,11 +71,11 @@ model Order {
   customerName   String?
   customerPhone  String?
   notes          String?
-  subtotal       Decimal     @db.Decimal(10, 2)
-  taxAmount      Decimal     @db.Decimal(10, 2)
-  serviceCharge  Decimal     @db.Decimal(10, 2) @default(0)
-  discount       Decimal     @db.Decimal(10, 2) @default(0)
-  total          Decimal     @db.Decimal(10, 2)
+  subtotal       Float
+  taxAmount      Float
+  serviceCharge  Float @default(0)
+  discount       Float @default(0)
+  total          Float
   paymentMethod  PaymentMethod
   paymentStatus  PaymentStatus @default(PENDING)
   createdAt      DateTime    @default(now())
@@ -92,8 +93,8 @@ model Order {
 model OrderItem {
   id        String  @id @default(cuid())
   quantity  Int
-  unitPrice Decimal @db.Decimal(10, 2)
-  total     Decimal @db.Decimal(10, 2)
+  unitPrice Float
+  total     Float
   notes     String?
   createdAt DateTime @default(now())
 
@@ -107,7 +108,7 @@ model OrderItem {
 
 model Payment {
   id            String        @id @default(cuid())
-  amount        Decimal       @db.Decimal(10, 2)
+  amount        Float
   method        PaymentMethod
   status        PaymentStatus @default(COMPLETED)
   transactionId String?
@@ -125,8 +126,8 @@ model RawMaterial {
   name        String   @unique
   description String?
   unit        String
-  stock       Decimal  @db.Decimal(10, 3)
-  cost        Decimal  @db.Decimal(10, 2)
+  stock       Float
+  cost        Float
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -139,7 +140,7 @@ model RawMaterial {
 
 model RawMaterialUsage {
   id             String   @id @default(cuid())
-  quantity       Decimal  @db.Decimal(10, 3)
+  quantity       Float
   createdAt      DateTime @default(now())
 
   rawMaterialId  String
@@ -153,7 +154,7 @@ model RawMaterialUsage {
 model RawMaterialStockLog {
   id            String         @id @default(cuid())
   type          StockLogType
-  quantity      Decimal        @db.Decimal(10, 3)
+  quantity      Float
   reason        String?
   createdAt     DateTime       @default(now())
 
@@ -167,15 +168,55 @@ model RawMaterialStockLog {
 
 model DailySales {
   id          String   @id @default(cuid())
-  date        DateTime @unique @db.Date
+  date        DateTime @unique
   totalOrders Int      @default(0)
-  totalSales  Decimal  @db.Decimal(10, 2) @default(0)
-  totalTax    Decimal  @db.Decimal(10, 2) @default(0)
-  totalTips   Decimal  @db.Decimal(10, 2) @default(0)
+  totalSales  Float @default(0)
+  totalTax    Float @default(0)
+  totalTips   Float @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@map("daily_sales")
+}
+
+model SalaryPayment {
+  id         String   @id @default(cuid())
+  amount     Float
+  month      Int      // 1-12
+  year       Int
+  notes      String?
+  paidBy     String   // Admin user ID who processed the payment
+  createdAt  DateTime @default(now())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@map("salary_payments")
+}
+
+model MonthlySalarySummary {
+  id            String   @id @default(cuid())
+  userId        String
+  month         Int      // 1-12
+  year          Int
+  monthlySalary Float
+  totalPaid     Float    @default(0)
+  balance       Float    @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([userId, month, year])
+  @@map("monthly_salary_summary")
+}
+
+model DailyOrderCounter {
+  id           String   @id @default(cuid())
+  date         String   @unique // YYYY-MM-DD format
+  counter      Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("daily_order_counter")
 }
 
 enum UserRole {

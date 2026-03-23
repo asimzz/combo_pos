@@ -9,9 +9,10 @@ import { StaffManagement } from '@/components/manage/staff-management'
 import { CategoryManagement } from '@/components/manage/category-management'
 import { RawMaterialsManagement } from '@/components/manage/raw-materials-management'
 import { StockManagement } from '@/components/manage/stock-management'
-import { Settings, Users, Menu, Store, Grid3X3, Package, Warehouse } from 'lucide-react'
+import SalaryManagement from '@/components/manage/salary-management'
+import { Settings, Users, Menu, Store, Grid3X3, Package, Warehouse, DollarSign } from 'lucide-react'
 
-type TabType = 'menu' | 'categories' | 'staff' | 'stock' | 'raw-materials' | 'settings'
+type TabType = 'menu' | 'categories' | 'staff' | 'stock' | 'raw-materials' | 'salaries' | 'settings'
 
 export default function ManagePage() {
   const { data: session, status } = useSession()
@@ -35,6 +36,7 @@ export default function ManagePage() {
     { id: 'stock' as TabType, name: 'Stock Management', icon: Package, adminOnly: false },
     { id: 'raw-materials' as TabType, name: 'Raw Materials', icon: Warehouse, adminOnly: true },
     { id: 'staff' as TabType, name: 'Staff Management', icon: Users, adminOnly: true },
+    { id: 'salaries' as TabType, name: 'Employee Salaries', icon: DollarSign, adminOnly: true },
     { id: 'settings' as TabType, name: 'Settings', icon: Settings, adminOnly: true },
   ].filter(tab => !tab.adminOnly || session.user.role === 'ADMIN')
 
@@ -85,6 +87,7 @@ export default function ManagePage() {
           {activeTab === 'stock' && <StockManagement />}
           {activeTab === 'raw-materials' && <RawMaterialsManagement />}
           {activeTab === 'staff' && <StaffManagement />}
+          {activeTab === 'salaries' && <SalaryManagement />}
           {activeTab === 'settings' && (
             <div className="p-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Settings</h3>

@@ -3,17 +3,19 @@
 import { useState, useEffect } from 'react'
 import { OrderWithItems } from '@/types'
 import { formatPrice, formatDate } from '@/lib/utils'
-import { Clock, User, Search, Filter, RefreshCw } from 'lucide-react'
+import { Clock, User, Search, Filter, RefreshCw, Printer, Receipt } from 'lucide-react'
+import { CustomerReceipt } from '@/components/receipts/customer-receipt'
+import { KitchenReceipt } from '@/components/receipts/kitchen-receipt'
 import toast from 'react-hot-toast'
 
-interface OrderManagementProps {}
-
-export function OrderManagement({}: OrderManagementProps) {
+export function OrderManagement() {
   const [orders, setOrders] = useState<OrderWithItems[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [updatingOrder, setUpdatingOrder] = useState<string | null>(null)
+  const [printingOrder, setPrintingOrder] = useState<OrderWithItems | null>(null)
+  const [printType, setPrintType] = useState<'customer' | 'kitchen' | null>(null)
 
   useEffect(() => {
     fetchOrders()
@@ -96,6 +98,17 @@ export function OrderManagement({}: OrderManagementProps) {
 
     return matchesSearch && matchesStatus
   })
+
+  const handlePrintReceipt = (order: OrderWithItems, type: 'customer' | 'kitchen') => {
+    setPrintingOrder(order)
+    setPrintType(type)
+  }
+
+  const handlePrintComplete = () => {
+    setPrintingOrder(null)
+    setPrintType(null)
+    toast.success('Receipt printed successfully')
+  }
 
   if (loading) {
     return (
@@ -263,6 +276,24 @@ export function OrderManagement({}: OrderManagementProps) {
                 </div>
               )}
 
+              {/* Print Actions */}
+              <div className="flex gap-2 mb-4">
+                <button
+                  onClick={() => handlePrintReceipt(order, 'customer')}
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-md text-sm font-medium flex items-center justify-center space-x-2 transition-colors"
+                >
+                  <Receipt className="w-4 h-4" />
+                  <span>Customer Receipt</span>
+                </button>
+                <button
+                  onClick={() => handlePrintReceipt(order, 'kitchen')}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-md text-sm font-medium flex items-center justify-center space-x-2 transition-colors"
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>Kitchen Order</span>
+                </button>
+              </div>
+
               {/* Payment Info */}
               <div className="flex justify-between items-center pt-4 border-t border-gray-100">
                 <span className="text-sm text-gray-600">
@@ -276,6 +307,36 @@ export function OrderManagement({}: OrderManagementProps) {
           ))
         )}
       </div>
+
+      {/* Print Modal */}
+      {printingOrder && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-auto">
+            {printType === 'customer' && (
+              <CustomerReceipt
+                order={printingOrder}
+                onPrint={handlePrintComplete}
+                showPrintButton={true}
+              />
+            )}
+            {printType === 'kitchen' && (
+              <KitchenReceipt
+                order={printingOrder}
+                onPrint={handlePrintComplete}
+                showPrintButton={true}
+              />
+            )}
+            <div className="p-4 border-t bg-gray-50 no-print">
+              <button
+                onClick={handlePrintComplete}
+                className="w-full bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
