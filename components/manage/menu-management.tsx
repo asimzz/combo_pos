@@ -62,8 +62,8 @@ export function MenuManagement({}: MenuManagementProps) {
     setEditForm({
       name: item.name,
       description: item.description || '',
-      price: (item.price / 100).toString(),
-      cost: (item.cost / 100).toString(),
+      price: (Number(item.price) / 100).toString(),
+      cost: (Number(item.cost) / 100).toString(),
       categoryId: item.categoryId,
       featured: item.featured,
       active: item.active
@@ -365,7 +365,7 @@ export function MenuManagement({}: MenuManagementProps) {
                       className="input text-sm w-24"
                     />
                   ) : (
-                    <span className="text-sm text-gray-900">{formatPrice(item.price)}</span>
+                    <span className="text-sm text-gray-900">{formatPrice(Number(item.price))}</span>
                   )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -382,7 +382,7 @@ export function MenuManagement({}: MenuManagementProps) {
                       className="input text-sm w-24"
                     />
                   ) : (
-                    <span className="text-sm text-gray-900">{formatPrice(item.cost)}</span>
+                    <span className="text-sm text-gray-900">{formatPrice(Number(item.cost))}</span>
                   )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">

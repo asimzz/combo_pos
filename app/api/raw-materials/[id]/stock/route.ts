@@ -37,7 +37,7 @@ export async function POST(
     }
 
     // Calculate new stock based on operation type
-    let newStock = rawMaterial.stock.toNumber()
+    let newStock = Number(rawMaterial.stock)
 
     switch (validatedData.type) {
       case 'IN':

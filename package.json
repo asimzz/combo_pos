@@ -2,6 +2,7 @@
   "name": "combo-pos-system",
   "version": "1.0.0",
   "description": "Modern Restaurant Point-of-Sale System",
+  "main": "electron/main.js",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -12,7 +13,11 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:studio": "prisma studio",
     "install-deps": "yarn install",
-    "setup": "yarn install && yarn db:generate && yarn db:push && yarn db:seed"
+    "setup": "yarn install && yarn db:generate && yarn db:push && yarn db:seed",
+    "electron": "concurrently \"yarn dev\" \"wait-on http://localhost:3000 && electron .\"",
+    "electron:build": "next build && electron-builder",
+    "build:windows": "next build && electron-builder --win",
+    "build:all": "next build && electron-builder --mac --win --linux"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.3.2",

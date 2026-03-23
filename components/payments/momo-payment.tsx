@@ -284,10 +284,10 @@ export function MomoPayment({
               </div>
               <button
                 onClick={initiatePhonePayment}
-                disabled={paymentStatus.status === 'processing' || !phoneNumber}
+                disabled={(paymentStatus.status as string) === 'processing' || !phoneNumber}
                 className="w-full bg-yellow-600 text-white py-3 rounded-lg font-medium hover:bg-yellow-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
               >
-                {paymentStatus.status === 'processing' ? (
+                {(paymentStatus.status as string) === 'processing' ? (
                   <>
                     <Clock className="w-4 h-4 inline mr-2 animate-spin" />
                     Sending request...
