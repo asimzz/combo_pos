@@ -7,6 +7,8 @@ import {
 } from "@/lib/utils";
 import { z } from "zod";
 
+export const dynamic = 'force-dynamic'
+
 const createOrderSchema = z.object({
   items: z.array(
     z.object({
