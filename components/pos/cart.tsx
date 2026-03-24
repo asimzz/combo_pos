@@ -153,7 +153,7 @@ export function Cart({
                   min="0"
                   value={item.takeawayCharge || ''}
                   onChange={(e) => onUpdateTakeaway(item.menuItemId, true, Number(e.target.value) || 0)}
-                  className="input text-xs w-28 py-1"
+                  className="input text-xs w-full sm:w-28 py-1"
                 />
               )}
             </div>

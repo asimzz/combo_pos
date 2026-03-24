@@ -9,6 +9,7 @@ import { Cart } from '@/components/pos/cart'
 import { Header } from '@/components/pos/header'
 import { OrderConfirmation } from '@/components/pos/order-confirmation'
 import toast from 'react-hot-toast'
+import { ShoppingCart, X } from 'lucide-react'
 
 export default function POSPage() {
   const { data: session, status } = useSession()
@@ -17,6 +18,7 @@ export default function POSPage() {
   const [loading, setLoading] = useState(true)
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [lastOrder, setLastOrder] = useState<any>(null)
+  const [showMobileCart, setShowMobileCart] = useState(false)
 
   useEffect(() => {
     if (status === 'loading') return
@@ -186,21 +188,23 @@ export default function POSPage() {
     )
   }
 
+  const cartItemCount = cart.reduce((sum, item) => sum + item.quantity, 0)
+
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
 
       <div className="flex h-[calc(100vh-4rem)]">
         {/* Menu Section */}
-        <div className="flex-1 p-4 overflow-y-auto">
+        <div className="flex-1 p-3 lg:p-4 overflow-y-auto">
           <MenuGrid
             categories={categories}
             onAddToCart={addToCart}
           />
         </div>
 
-        {/* Cart Section */}
-        <div className="w-80 bg-white border-l border-gray-200 flex flex-col">
+        {/* Cart Section - Desktop sidebar */}
+        <div className="hidden lg:flex lg:w-72 xl:w-80 2xl:w-96 bg-white border-l border-gray-200 flex-col shrink-0">
           <Cart
             cart={cart}
             onRemoveItem={removeFromCart}
@@ -212,6 +216,56 @@ export default function POSPage() {
           />
         </div>
       </div>
+
+      {/* Mobile Cart FAB */}
+      {!showMobileCart && (
+        <button
+          onClick={() => setShowMobileCart(true)}
+          className="lg:hidden fixed bottom-6 right-6 bg-primary-600 text-white rounded-full w-16 h-16 flex items-center justify-center shadow-lg z-50"
+        >
+          <ShoppingCart className="w-6 h-6" />
+          {cartItemCount > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-6 h-6 flex items-center justify-center font-bold">
+              {cartItemCount}
+            </span>
+          )}
+        </button>
+      )}
+
+      {/* Mobile Cart Drawer */}
+      {showMobileCart && (
+        <div className="lg:hidden fixed inset-0 z-50">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setShowMobileCart(false)}
+          />
+          <div className="absolute right-0 top-0 bottom-0 w-full sm:w-96 bg-white flex flex-col shadow-xl">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h2 className="text-lg font-semibold">Cart</h2>
+              <button
+                onClick={() => setShowMobileCart(false)}
+                className="p-2 hover:bg-gray-100 rounded-full"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-hidden">
+              <Cart
+                cart={cart}
+                onRemoveItem={removeFromCart}
+                onUpdateQuantity={updateQuantity}
+                onUpdateNotes={updateNotes}
+                onUpdateTakeaway={updateTakeaway}
+                onClearCart={clearCart}
+                onSubmitOrder={(data) => {
+                  handleOrderSubmit(data)
+                  setShowMobileCart(false)
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

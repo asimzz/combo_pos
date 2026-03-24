@@ -20,7 +20,7 @@ export function MenuGrid({ categories, onAddToCart }: MenuGridProps) {
   return (
     <div className="space-y-6">
       {/* Category Filter */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-1.5">
         <button
           onClick={() => setSelectedCategory('')}
           className={`btn btn-sm ${
@@ -45,12 +45,12 @@ export function MenuGrid({ categories, onAddToCart }: MenuGridProps) {
       {/* Menu Items */}
       {filteredCategories.map(category => (
         <div key={category.id} className="space-y-4">
-          <h2 className="text-2xl font-semibold text-gray-800">
+          <h2 className="text-xl lg:text-2xl font-semibold text-gray-800">
             {category.name}
           </h2>
-          <p className="text-gray-600">{category.description}</p>
+          <p className="text-sm text-gray-600">{category.description}</p>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
             {category.items.map(item => {
               const stock = item.stock || 0
               const lowStockAlert = item.lowStockAlert || 10
@@ -68,13 +68,13 @@ export function MenuGrid({ categories, onAddToCart }: MenuGridProps) {
                   onClick={() => !isOutOfStock && onAddToCart(item)}
                 >
                 {/* Header with price, menu number, and badges */}
-                <div className={`p-4 text-white relative ${
+                <div className={`p-3 text-white relative ${
                   isOutOfStock
                     ? 'bg-gradient-to-r from-gray-400 to-gray-500'
                     : 'bg-gradient-to-r from-primary-500 to-secondary-500'
                 }`}>
                   <div className="flex justify-between items-start">
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-2">
                         {isOutOfStock && (
                           <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-bold">
@@ -85,13 +85,13 @@ export function MenuGrid({ categories, onAddToCart }: MenuGridProps) {
                           <AlertTriangle className="w-4 h-4 text-yellow-300" />
                         )}
                       </div>
-                      <h3 className="font-bold text-lg leading-tight">{item.name}</h3>
-                      <div className="text-2xl font-black mt-1">
+                      <h3 className="font-bold text-sm lg:text-base leading-tight truncate">{item.name}</h3>
+                      <div className="text-lg lg:text-2xl font-black mt-1">
                         {formatPrice(Number(item.price))}
                       </div>
                     </div>
                     {item.featured && !isOutOfStock && (
-                      <span className="bg-white text-primary-700 text-xs px-2 py-1 rounded-full font-bold ml-2">
+                      <span className="bg-white text-primary-700 text-[10px] lg:text-xs px-1.5 lg:px-2 py-0.5 lg:py-1 rounded-full font-bold ml-1 shrink-0">
                         POPULAR
                       </span>
                     )}
@@ -99,8 +99,8 @@ export function MenuGrid({ categories, onAddToCart }: MenuGridProps) {
                 </div>
 
                 {/* Description and action */}
-                <div className="p-4">
-                  <p className={`text-sm mb-4 line-clamp-3 leading-relaxed ${
+                <div className="p-3">
+                  <p className={`text-xs lg:text-sm mb-3 line-clamp-2 lg:line-clamp-3 leading-relaxed ${
                     isOutOfStock ? 'text-gray-400' : 'text-gray-600'
                   }`}>
                     {item.description}
@@ -129,13 +129,13 @@ export function MenuGrid({ categories, onAddToCart }: MenuGridProps) {
                         if (!isOutOfStock) onAddToCart(item)
                       }}
                       disabled={isOutOfStock}
-                      className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2 ${
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center space-x-1 ${
                         isOutOfStock
                           ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                           : 'ml-auto bg-primary-500 hover:bg-primary-600 text-white group-hover:bg-primary-600'
                       }`}
                     >
-                      <Plus className="w-4 h-4" />
+                      <Plus className="w-3.5 h-3.5" />
                       <span>{isOutOfStock ? 'Unavailable' : 'Add'}</span>
                     </button>
                   </div>
