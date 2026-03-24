@@ -31,25 +31,16 @@ export async function POST(request: NextRequest) {
     }
 
     const sessionUserId = session.user.id;
-    const sessionUserEmail = session.user.email;
 
     const user = await prisma.user.findUnique({
-      where: sessionUserId
-        ? { id: sessionUserId }
-        : { email: sessionUserEmail },
+      where: { id: sessionUserId },
     });
 
-    if (!user && sessionUserEmail) {
-      const userByEmail = await prisma.user.findUnique({
-        where: { email: sessionUserEmail },
-      });
-      if (!userByEmail) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
-      (session.user as { id: string }).id = userByEmail.id;
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const orderUserId = user?.id ?? session.user.id;
+    const orderUserId = user.id;
 
     const body = await request.json();
     const data = createOrderSchema.parse(body);
@@ -174,7 +165,7 @@ export async function GET() {
         user: {
           select: {
             name: true,
-            email: true,
+            phone: true,
           },
         },
       },

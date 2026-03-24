@@ -116,7 +116,7 @@ export async function PATCH(
         user: {
           select: {
             name: true,
-            email: true
+            phone: true
           }
         }
       }
