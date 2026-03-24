@@ -38,10 +38,10 @@ async function main() {
   const hashedPassword = await bcrypt.hash("admin123", 12);
 
   const adminUser = await prisma.user.upsert({
-    where: { email: "admin@combo.com" },
+    where: { phone: "0780000001" },
     update: {},
     create: {
-      email: "admin@combo.com",
+      phone: "0780000001",
       name: "Admin User",
       password: hashedPassword,
       role: "ADMIN",
@@ -53,10 +53,10 @@ async function main() {
   const staffPassword = await bcrypt.hash("staff123", 12);
 
   const staffUser = await prisma.user.upsert({
-    where: { email: "staff@combo.com" },
+    where: { phone: "0780000002" },
     update: {},
     create: {
-      email: "staff@combo.com",
+      phone: "0780000002",
       name: "Staff User",
       password: staffPassword,
       role: "STAFF",
@@ -68,10 +68,10 @@ async function main() {
   const managerPassword = await bcrypt.hash("manager123", 12);
 
   const managerUser = await prisma.user.upsert({
-    where: { email: "manager@combo.com" },
+    where: { phone: "0780000003" },
     update: {},
     create: {
-      email: "manager@combo.com",
+      phone: "0780000003",
       name: "Manager User",
       password: managerPassword,
       role: "MANAGER",
@@ -82,10 +82,10 @@ async function main() {
   const cashierPassword = await bcrypt.hash("cashier123", 12);
 
   const cashierUser = await prisma.user.upsert({
-    where: { email: "cashier@combo.com" },
+    where: { phone: "0780000004" },
     update: {},
     create: {
-      email: "cashier@combo.com",
+      phone: "0780000004",
       name: "Cashier User",
       password: cashierPassword,
       role: "STAFF",
@@ -656,7 +656,7 @@ async function main() {
   console.log("Creating sample orders with different statuses...");
 
   const foundAdminUser = await prisma.user.findUnique({
-    where: { email: "admin@combo.com" },
+    where: { phone: "0780000001" },
   });
 
   if (foundAdminUser) {
@@ -883,14 +883,10 @@ async function main() {
   console.log("Expense categories created!");
 
   console.log("Database seeded successfully!");
-  console.log("Admin user: admin@combo.com / admin123 (Salary: 150,000 RWF)");
-  console.log(
-    "Manager user: manager@combo.com / manager123 (Salary: 120,000 RWF)",
-  );
-  console.log("Staff user: staff@combo.com / staff123 (Salary: 80,000 RWF)");
-  console.log(
-    "Cashier user: cashier@combo.com / cashier123 (Salary: 60,000 RWF)",
-  );
+  console.log("Admin user: 0780000001 / admin123 (Salary: 150,000 RWF)");
+  console.log("Manager user: 0780000003 / manager123 (Salary: 120,000 RWF)");
+  console.log("Staff user: 0780000002 / staff123 (Salary: 80,000 RWF)");
+  console.log("Cashier user: 0780000004 / cashier123 (Salary: 60,000 RWF)");
   console.log(
     "Navigate to /manage → Employee Salaries to access salary management",
   );

@@ -7,7 +7,7 @@ import bcrypt from 'bcryptjs'
 
 const createUserSchema = z.object({
   name: z.string().min(1),
-  email: z.string().email(),
+  phone: z.string().min(1),
   password: z.string().min(6),
   role: z.enum(['ADMIN', 'MANAGER', 'STAFF']),
 })
@@ -23,7 +23,7 @@ export async function GET() {
       select: {
         id: true,
         name: true,
-        email: true,
+        phone: true,
         role: true,
         createdAt: true,
       },
@@ -52,12 +52,12 @@ export async function POST(request: NextRequest) {
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
-      where: { email: data.email }
+      where: { phone: data.phone }
     })
 
     if (existingUser) {
       return NextResponse.json(
-        { error: 'User with this email already exists' },
+        { error: 'User with this phone number already exists' },
         { status: 400 }
       )
     }
@@ -68,14 +68,14 @@ export async function POST(request: NextRequest) {
     const user = await prisma.user.create({
       data: {
         name: data.name,
-        email: data.email,
+        phone: data.phone,
         password: hashedPassword,
         role: data.role,
       },
       select: {
         id: true,
         name: true,
-        email: true,
+        phone: true,
         role: true,
         createdAt: true,
       }

@@ -1,17 +1,15 @@
 import { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
-import { PrismaAdapter } from '@next-auth/prisma-adapter'
 import { prisma } from './prisma'
 import bcrypt from 'bcryptjs'
 import { z } from 'zod'
 
 const loginSchema = z.object({
-  email: z.string().email(),
+  phone: z.string().min(1),
   password: z.string().min(1),
 })
 
 export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma),
   session: { strategy: 'jwt' },
   pages: {
     signIn: '/auth/signin',
@@ -20,31 +18,26 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: 'credentials',
       credentials: {
-        email: { label: 'Email', type: 'email' },
+        phone: { label: 'Phone', type: 'tel' },
         password: { label: 'Password', type: 'password' }
       },
       async authorize(credentials) {
         try {
-          const { email, password } = loginSchema.parse(credentials)
-
-          console.log('Auth attempt for:', email)
+          const { phone, password } = loginSchema.parse(credentials)
 
           const user = await prisma.user.findUnique({
-            where: { email }
+            where: { phone }
           })
-
-          console.log('User found:', user ? 'Yes' : 'No')
 
           if (!user) return null
 
           const passwordMatch = await bcrypt.compare(password, user.password)
-          console.log('Password match:', passwordMatch)
 
           if (!passwordMatch) return null
 
           return {
             id: user.id,
-            email: user.email,
+            phone: user.phone,
             name: user.name,
             role: user.role,
           }
@@ -59,6 +52,7 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user }) {
       if (user) {
         token.role = user.role
+        token.phone = user.phone
       }
       return token
     },
@@ -66,6 +60,7 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         session.user.id = token.sub!
         session.user.role = token.role as string
+        session.user.phone = token.phone as string
       }
       return session
     }

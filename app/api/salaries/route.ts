@@ -26,7 +26,7 @@ export async function GET() {
       select: {
         id: true,
         name: true,
-        email: true,
+        phone: true,
         role: true,
         monthlySalary: true,
         salaryPayments: {
@@ -49,7 +49,7 @@ export async function GET() {
       return {
         id: employee.id,
         name: employee.name,
-        email: employee.email,
+        phone: employee.phone,
         role: employee.role,
         monthlySalary: employee.monthlySalary || 0,
         totalPaid,
@@ -92,7 +92,7 @@ export async function PUT(request: NextRequest) {
       select: {
         id: true,
         name: true,
-        email: true,
+        phone: true,
         role: true,
         monthlySalary: true
       }

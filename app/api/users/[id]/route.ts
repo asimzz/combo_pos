@@ -7,7 +7,7 @@ import bcrypt from 'bcryptjs'
 
 const updateUserSchema = z.object({
   name: z.string().min(1).optional(),
-  email: z.string().email().optional(),
+  phone: z.string().min(1).optional(),
   password: z.string().min(6).optional(),
   role: z.enum(['ADMIN', 'MANAGER', 'STAFF']).optional(),
 })
@@ -25,18 +25,18 @@ export async function PUT(
     const body = await request.json()
     const data = updateUserSchema.parse(body)
 
-    // Check if email is being changed and if it already exists
-    if (data.email) {
+    // Check if phone is being changed and if it already exists
+    if (data.phone) {
       const existingUser = await prisma.user.findFirst({
         where: {
-          email: data.email,
+          phone: data.phone,
           NOT: { id: params.id }
         }
       })
 
       if (existingUser) {
         return NextResponse.json(
-          { error: 'User with this email already exists' },
+          { error: 'User with this phone number already exists' },
           { status: 400 }
         )
       }
@@ -45,7 +45,7 @@ export async function PUT(
     // Prepare update data
     const updateData: any = {}
     if (data.name) updateData.name = data.name
-    if (data.email) updateData.email = data.email
+    if (data.phone) updateData.phone = data.phone
     if (data.role) updateData.role = data.role
     if (data.password) {
       updateData.password = await bcrypt.hash(data.password, 12)
@@ -57,7 +57,7 @@ export async function PUT(
       select: {
         id: true,
         name: true,
-        email: true,
+        phone: true,
         role: true,
         createdAt: true,
       }

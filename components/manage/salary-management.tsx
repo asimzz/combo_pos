@@ -21,7 +21,7 @@ import { formatPrice } from "@/lib/utils";
 interface Employee {
   id: string;
   name: string;
-  email: string;
+  phone: string;
   role: string;
   monthlySalary: number;
   totalPaid: number;
@@ -327,7 +327,7 @@ export default function SalaryManagement() {
                           {employee.name}
                         </div>
                         <div className="text-sm text-gray-500">
-                          {employee.email}
+                          {employee.phone}
                         </div>
                       </div>
                     </td>

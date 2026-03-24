@@ -7,7 +7,7 @@ import { Eye, EyeOff } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function SignInPage() {
-  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
@@ -15,7 +15,7 @@ export default function SignInPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email || !password) {
+    if (!phone || !password) {
       toast.error('Please fill in all fields')
       return
     }
@@ -24,7 +24,7 @@ export default function SignInPage() {
 
     try {
       const result = await signIn('credentials', {
-        email,
+        phone,
         password,
         redirect: false,
       })
@@ -63,24 +63,24 @@ export default function SignInPage() {
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
           <h3 className="font-medium text-blue-900 mb-2">Demo Credentials:</h3>
           <div className="text-sm text-blue-800 space-y-1">
-            <p><strong>Admin:</strong> admin@combo.com / admin123</p>
-            <p><strong>Staff:</strong> staff@combo.com / staff123</p>
+            <p><strong>Admin:</strong> 0780000001 / admin123</p>
+            <p><strong>Staff:</strong> 0780000002 / staff123</p>
           </div>
         </div>
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-              Email Address
+            <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+              Phone Number
             </label>
             <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              id="phone"
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
               className="input w-full"
-              placeholder="Enter your email"
+              placeholder="Enter your phone number"
               required
             />
           </div>
@@ -135,7 +135,7 @@ export default function SignInPage() {
           <div className="space-y-2">
             <button
               onClick={() => {
-                setEmail('admin@combo.com')
+                setPhone('0780000001')
                 setPassword('admin123')
               }}
               className="btn btn-outline btn-sm w-full"
@@ -144,7 +144,7 @@ export default function SignInPage() {
             </button>
             <button
               onClick={() => {
-                setEmail('staff@combo.com')
+                setPhone('0780000002')
                 setPassword('staff123')
               }}
               className="btn btn-outline btn-sm w-full"

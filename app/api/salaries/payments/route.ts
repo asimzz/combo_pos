@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
         user: {
           select: {
             name: true,
-            email: true
+            phone: true
           }
         }
       }
@@ -124,7 +124,7 @@ export async function GET(request: NextRequest) {
         user: {
           select: {
             name: true,
-            email: true,
+            phone: true,
             role: true
           }
         }

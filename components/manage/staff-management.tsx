@@ -14,7 +14,7 @@ export function StaffManagement({}: StaffManagementProps) {
   const [showAddForm, setShowAddForm] = useState(false)
   const [editForm, setEditForm] = useState({
     name: '',
-    email: '',
+    phone: '',
     password: '',
     role: 'STAFF' as 'ADMIN' | 'MANAGER' | 'STAFF'
   })
@@ -40,7 +40,7 @@ export function StaffManagement({}: StaffManagementProps) {
     setEditingUser(user.id)
     setEditForm({
       name: user.name || '',
-      email: user.email || '',
+      phone: user.phone || '',
       password: '',
       role: user.role as 'ADMIN' | 'MANAGER' | 'STAFF'
     })
@@ -50,7 +50,7 @@ export function StaffManagement({}: StaffManagementProps) {
     try {
       const updateData: any = {
         name: editForm.name,
-        email: editForm.email,
+        phone: editForm.phone,
         role: editForm.role
       }
 
@@ -94,7 +94,7 @@ export function StaffManagement({}: StaffManagementProps) {
       setShowAddForm(false)
       setEditForm({
         name: '',
-        email: '',
+        phone: '',
         password: '',
         role: 'STAFF'
       })
@@ -171,10 +171,10 @@ export function StaffManagement({}: StaffManagementProps) {
               className="input"
             />
             <input
-              type="email"
-              placeholder="Email address"
-              value={editForm.email}
-              onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+              type="tel"
+              placeholder="Phone number"
+              value={editForm.phone}
+              onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
               className="input"
             />
             <input
@@ -219,7 +219,7 @@ export function StaffManagement({}: StaffManagementProps) {
                 Staff Member
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Email
+                Phone
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Role
@@ -261,13 +261,13 @@ export function StaffManagement({}: StaffManagementProps) {
                 <td className="px-6 py-4 whitespace-nowrap">
                   {editingUser === user.id ? (
                     <input
-                      type="email"
-                      value={editForm.email}
-                      onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                      type="tel"
+                      value={editForm.phone}
+                      onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
                       className="input text-sm"
                     />
                   ) : (
-                    <div className="text-sm text-gray-900">{user.email}</div>
+                    <div className="text-sm text-gray-900">{user.phone}</div>
                   )}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">

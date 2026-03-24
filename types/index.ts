@@ -70,7 +70,7 @@ export type MonthlySalaryData = {
 export type SalaryPaymentWithUser = SalaryPayment & {
   user: {
     name: string
-    email: string
+    phone: string
     role: string
   }
 }
