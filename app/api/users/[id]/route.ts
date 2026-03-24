@@ -104,9 +104,16 @@ export async function DELETE(
       )
     }
 
-    await prisma.user.delete({
-      where: { id: params.id }
-    })
+    // Delete related records first
+    await prisma.$transaction([
+      prisma.salaryPayment.deleteMany({ where: { userId: params.id } }),
+      prisma.expense.deleteMany({ where: { userId: params.id } }),
+      prisma.creditEntry.deleteMany({ where: { userId: params.id } }),
+      prisma.debtEntry.deleteMany({ where: { userId: params.id } }),
+      prisma.rawMaterialStockLog.deleteMany({ where: { userId: params.id } }),
+      prisma.materialEntry.deleteMany({ where: { userId: params.id } }),
+      prisma.user.delete({ where: { id: params.id } }),
+    ])
 
     return NextResponse.json({ message: 'User deleted successfully' })
   } catch (error) {

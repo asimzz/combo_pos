@@ -7,14 +7,15 @@ import { DashboardHeader } from '@/components/dashboard/dashboard-header'
 import { MenuManagement } from '@/components/manage/menu-management'
 import { StaffManagement } from '@/components/manage/staff-management'
 import { CategoryManagement } from '@/components/manage/category-management'
-import { RawMaterialsManagement } from '@/components/manage/raw-materials-management'
+import { MaterialManagement } from '@/components/manage/material-management'
 import { StockManagement } from '@/components/manage/stock-management'
 import SalaryManagement from '@/components/manage/salary-management'
 import { ExpenseManagement } from '@/components/manage/expense-management'
 import { CreditBook } from '@/components/manage/credit-book'
-import { Settings, Users, Menu, Store, Grid3X3, Package, Warehouse, DollarSign, Receipt, BookOpen, ArrowLeft } from 'lucide-react'
+import { DebtBook } from '@/components/manage/debt-book'
+import { Settings, Users, Menu, Store, Grid3X3, Package, Warehouse, DollarSign, Receipt, BookOpen, BookMarked, ArrowLeft } from 'lucide-react'
 
-type TabType = 'menu' | 'categories' | 'staff' | 'stock' | 'raw-materials' | 'salaries' | 'expenses' | 'credits' | 'settings'
+type TabType = 'menu' | 'categories' | 'staff' | 'stock' | 'raw-materials' | 'salaries' | 'expenses' | 'credits' | 'debts' | 'settings'
 
 export default function ManagePage() {
   const { data: session, status } = useSession()
@@ -36,11 +37,12 @@ export default function ManagePage() {
     { id: 'menu' as TabType, name: 'Menu Items', icon: Menu, description: 'Add and edit menu items', adminOnly: false },
     { id: 'categories' as TabType, name: 'Categories', icon: Grid3X3, description: 'Organize menu categories', adminOnly: true },
     { id: 'stock' as TabType, name: 'Stock', icon: Package, description: 'Track inventory levels', adminOnly: false },
-    { id: 'raw-materials' as TabType, name: 'Raw Materials', icon: Warehouse, description: 'Manage ingredients', adminOnly: true },
+    { id: 'raw-materials' as TabType, name: 'Raw Materials', icon: Warehouse, description: 'Track daily materials', adminOnly: true },
     { id: 'staff' as TabType, name: 'Staff', icon: Users, description: 'Manage employees', adminOnly: true },
     { id: 'salaries' as TabType, name: 'Salaries', icon: DollarSign, description: 'Employee payments', adminOnly: true },
     { id: 'expenses' as TabType, name: 'Expenses', icon: Receipt, description: 'Track daily expenses', adminOnly: true },
     { id: 'credits' as TabType, name: 'Credit Book', icon: BookOpen, description: 'Track customer debts', adminOnly: true },
+    { id: 'debts' as TabType, name: 'Debt Book', icon: BookMarked, description: 'Track what you owe', adminOnly: true },
     { id: 'settings' as TabType, name: 'Settings', icon: Settings, description: 'App configuration', adminOnly: true },
   ].filter(tab => !tab.adminOnly || session.user.role === 'ADMIN')
 
@@ -94,11 +96,12 @@ export default function ManagePage() {
             {activeTab === 'menu' && <MenuManagement />}
             {activeTab === 'categories' && <CategoryManagement />}
             {activeTab === 'stock' && <StockManagement />}
-            {activeTab === 'raw-materials' && <RawMaterialsManagement />}
+            {activeTab === 'raw-materials' && <MaterialManagement />}
             {activeTab === 'staff' && <StaffManagement />}
             {activeTab === 'salaries' && <SalaryManagement />}
             {activeTab === 'expenses' && <ExpenseManagement />}
             {activeTab === 'credits' && <CreditBook />}
+            {activeTab === 'debts' && <DebtBook />}
             {activeTab === 'settings' && (
               <div className="p-6">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">Settings</h3>
