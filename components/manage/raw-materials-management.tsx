@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Plus, Edit, Trash2, Save, X, AlertTriangle } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { formatPrice } from '@/lib/utils'
 
 interface RawMaterial {
   id: string
@@ -263,7 +264,7 @@ export function RawMaterialsManagement() {
                 Stock
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Cost/Unit
+                Cost
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Actions
@@ -300,7 +301,7 @@ export function RawMaterialsManagement() {
                   </button>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  ${Number(item.cost).toFixed(2) || '0.00'}
+                  {formatPrice(Number(item.cost) || 0)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <div className="flex space-x-1">
