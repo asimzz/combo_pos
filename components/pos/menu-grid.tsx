@@ -52,8 +52,9 @@ export function MenuGrid({ categories, onAddToCart }: MenuGridProps) {
 
           <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
             {category.items.map(item => {
-              const stock = item.stock || 0
-              const lowStockAlert = item.lowStockAlert || 10
+              const sg = (item as any).stockGroup
+              const stock = sg ? sg.stock : (item.stock || 0)
+              const lowStockAlert = sg ? sg.lowStockAlert : (item.lowStockAlert || 10)
               const isOutOfStock = stock === 0
               const isLowStock = stock > 0 && stock <= lowStockAlert
 

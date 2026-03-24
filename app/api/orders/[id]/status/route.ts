@@ -39,7 +39,8 @@ export async function PATCH(
           include: {
             menuItem: {
               include: {
-                category: true
+                category: true,
+                stockGroup: true
               }
             }
           }
@@ -62,14 +63,30 @@ export async function PATCH(
 
     // CANCELLED: refund stock since it was deducted at creation
     if (status === 'CANCELLED') {
-      await Promise.all(
-        currentOrder.orderItems.map((orderItem) =>
+      const groupRefunds = new Map<string, number>()
+      const individualRefunds: { menuItemId: string; quantity: number }[] = []
+
+      currentOrder.orderItems.forEach((orderItem) => {
+        const mi = orderItem.menuItem as any
+        if (mi.stockGroupId) {
+          const current = groupRefunds.get(mi.stockGroupId) || 0
+          groupRefunds.set(mi.stockGroupId, current + orderItem.quantity)
+        } else {
+          individualRefunds.push({ menuItemId: orderItem.menuItemId, quantity: orderItem.quantity })
+        }
+      })
+
+      await Promise.all([
+        ...individualRefunds.map((item) =>
           prisma.menuItem.update({
-            where: { id: orderItem.menuItemId },
-            data: { stock: { increment: orderItem.quantity } }
+            where: { id: item.menuItemId },
+            data: { stock: { increment: item.quantity } }
           })
-        )
-      )
+        ),
+        ...Array.from(groupRefunds.entries()).map(([groupId, qty]) =>
+          prisma.$executeRaw`UPDATE "stock_groups" SET "stock" = "stock" + ${qty} WHERE "id" = ${groupId}`
+        ),
+      ])
     }
 
     // SERVED: mark payment as completed

@@ -11,13 +11,34 @@ export async function GET() {
       include: {
         items: {
           where: { active: true },
-          orderBy: { sortOrder: 'asc' }
+          orderBy: { sortOrder: 'asc' },
         }
       },
       orderBy: { sortOrder: 'asc' }
     })
 
-    return NextResponse.json(categories)
+    // Fetch stock groups and map to items
+    const stockGroups = await prisma.stockGroup.findMany({
+      include: { items: { select: { id: true } } }
+    })
+
+    const itemGroupMap = new Map<string, { stock: number; lowStockAlert: number }>()
+    stockGroups.forEach((sg) => {
+      sg.items.forEach((item) => {
+        itemGroupMap.set(item.id, { stock: sg.stock, lowStockAlert: sg.lowStockAlert })
+      })
+    })
+
+    // Attach stockGroup data to items
+    const result = categories.map((cat) => ({
+      ...cat,
+      items: cat.items.map((item) => ({
+        ...item,
+        stockGroup: itemGroupMap.get(item.id) || null,
+      })),
+    }))
+
+    return NextResponse.json(result)
   } catch (error) {
     console.error('Error fetching POS menu:', error)
     return NextResponse.json(

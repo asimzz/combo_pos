@@ -15,6 +15,7 @@ model User {
   role      UserRole @default(STAFF)
   active    Boolean  @default(true)
   monthlySalary Float? @default(0)
+  salaryDueDay  Int?   @default(1)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -23,6 +24,8 @@ model User {
   salaryPayments SalaryPayment[]
   expenses Expense[]
   creditEntries CreditEntry[]
+  debtEntries DebtEntry[]
+  materialEntries MaterialEntry[]
 
   @@map("users")
 }
@@ -39,6 +42,16 @@ model Category {
   items MenuItem[]
 
   @@map("categories")
+}
+
+model StockGroup {
+  id    String @id @default(cuid())
+  name  String @unique
+  stock Int    @default(0)
+  lowStockAlert Int @default(10)
+  items MenuItem[]
+
+  @@map("stock_groups")
 }
 
 model MenuItem {
@@ -59,6 +72,9 @@ model MenuItem {
 
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id])
+
+  stockGroupId String?
+  stockGroup   StockGroup? @relation(fields: [stockGroupId], references: [id])
 
   orderItems OrderItem[]
   rawMaterialUsage RawMaterialUsage[]
@@ -266,6 +282,66 @@ model CreditPayment {
   creditEntry   CreditEntry @relation(fields: [creditEntryId], references: [id], onDelete: Cascade)
 
   @@map("credit_payments")
+}
+
+model DebtEntry {
+  id            String   @id @default(cuid())
+  supplierName  String
+  contactType   String?  // "phone" or "momo"
+  contactValue  String?
+  amount        Float
+  paidAmount    Float    @default(0)
+  description   String?
+  settled       Boolean  @default(false)
+  settledAt     DateTime?
+  createdAt     DateTime @default(now())
+
+  userId String
+  user   User @relation(fields: [userId], references: [id])
+
+  payments DebtPayment[]
+
+  @@map("debt_entries")
+}
+
+model DebtPayment {
+  id        String   @id @default(cuid())
+  amount    Float
+  createdAt DateTime @default(now())
+
+  debtEntryId String
+  debtEntry   DebtEntry @relation(fields: [debtEntryId], references: [id], onDelete: Cascade)
+
+  @@map("debt_payments")
+}
+
+model MaterialCategory {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  unit      String   @default("kg")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  entries MaterialEntry[]
+
+  @@map("material_categories")
+}
+
+model MaterialEntry {
+  id          String   @id @default(cuid())
+  quantity    Float?
+  amount      Float
+  description String?
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  categoryId String
+  category   MaterialCategory @relation(fields: [categoryId], references: [id])
+
+  userId String
+  user   User @relation(fields: [userId], references: [id])
+
+  @@map("material_entries")
 }
 
 model DailyOrderCounter {

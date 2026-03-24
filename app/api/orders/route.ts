@@ -47,12 +47,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const data = createOrderSchema.parse(body);
 
-    // Fetch menu items and generate order number in parallel
+    // Fetch menu items (with stock group) and generate order number in parallel
     const [menuItems, dailyOrderNumber] = await Promise.all([
       prisma.menuItem.findMany({
         where: {
           id: { in: data.items.map((item) => item.menuItemId) },
         },
+        include: { stockGroup: true },
       }),
       generateDailyOrderNumber(prisma),
     ]);
@@ -65,7 +66,9 @@ export async function POST(request: NextRequest) {
       if (!menuItem.active)
         throw new Error(`Menu item ${menuItem.name} is not available`);
 
-      const currentStock = menuItem.stock || 0;
+      const currentStock = menuItem.stockGroup
+        ? menuItem.stockGroup.stock
+        : (menuItem.stock || 0);
       if (currentStock < item.quantity) {
         throw new Error(
           `Insufficient stock for ${menuItem.name}. Available: ${currentStock}, Requested: ${item.quantity}`,
@@ -86,10 +89,28 @@ export async function POST(request: NextRequest) {
 
     const total = subtotal + data.serviceCharge - data.discount;
 
-    // Run stock deductions and order creation in parallel (single round trip)
-    const stockUpdates = data.items.map((item) =>
-      prisma.$executeRaw`UPDATE "menu_items" SET "stock" = "stock" - ${item.quantity} WHERE "id" = ${item.menuItemId}`
-    );
+    // Build stock deductions — use stock_groups table for grouped items, menu_items for others
+    const stockGroupDeductions = new Map<string, number>();
+    const individualDeductions: { menuItemId: string; quantity: number }[] = [];
+
+    data.items.forEach((item) => {
+      const menuItem = menuItems.find((mi) => mi.id === item.menuItemId);
+      if (menuItem?.stockGroupId) {
+        const current = stockGroupDeductions.get(menuItem.stockGroupId) || 0;
+        stockGroupDeductions.set(menuItem.stockGroupId, current + item.quantity);
+      } else {
+        individualDeductions.push({ menuItemId: item.menuItemId, quantity: item.quantity });
+      }
+    });
+
+    const stockUpdates = [
+      ...individualDeductions.map((item) =>
+        prisma.$executeRaw`UPDATE "menu_items" SET "stock" = "stock" - ${item.quantity} WHERE "id" = ${item.menuItemId}`
+      ),
+      ...Array.from(stockGroupDeductions.entries()).map(([groupId, qty]) =>
+        prisma.$executeRaw`UPDATE "stock_groups" SET "stock" = "stock" - ${qty} WHERE "id" = ${groupId}`
+      ),
+    ];
 
     const orderCreate = prisma.order.create({
       data: {
