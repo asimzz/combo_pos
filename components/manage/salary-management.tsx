@@ -24,6 +24,8 @@ interface Employee {
   phone: string;
   role: string;
   monthlySalary: number;
+  salaryDueDay: number;
+  dueDate: string;
   totalPaid: number;
   balance: number;
   payments: SalaryPayment[];
@@ -80,6 +82,9 @@ export default function SalaryManagement() {
   const [salaryInputs, setSalaryInputs] = useState<{ [key: string]: string }>(
     {},
   );
+  const [dueDayInputs, setDueDayInputs] = useState<{ [key: string]: string }>(
+    {},
+  );
   const [showPaymentHistory, setShowPaymentHistory] = useState(false);
   const [paymentHistory, setPaymentHistory] = useState<SalaryPayment[]>([]);
   const [historyEmployeeName, setHistoryEmployeeName] = useState("");
@@ -110,6 +115,10 @@ export default function SalaryManagement() {
 
   const handleUpdateSalary = async (userId: string, newSalary: number) => {
     try {
+      const dueDay = dueDayInputs[userId]
+        ? parseInt(dueDayInputs[userId])
+        : undefined;
+
       const response = await fetch("/api/salaries", {
         method: "PUT",
         headers: {
@@ -118,6 +127,7 @@ export default function SalaryManagement() {
         body: JSON.stringify({
           userId,
           monthlySalary: newSalary,
+          ...(dueDay && { salaryDueDay: dueDay }),
         }),
       });
 
@@ -314,6 +324,9 @@ export default function SalaryManagement() {
                     Balance
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Due Date
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -406,6 +419,34 @@ export default function SalaryManagement() {
                       >
                         {formatPrice(employee.balance)}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {editingSalary[employee.id] ? (
+                        <input
+                          type="number"
+                          min="1"
+                          max="31"
+                          value={dueDayInputs[employee.id] || employee.salaryDueDay || 1}
+                          onChange={(e) =>
+                            setDueDayInputs((prev) => ({
+                              ...prev,
+                              [employee.id]: e.target.value,
+                            }))
+                          }
+                          className="w-16 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-primary-500 focus:border-primary-500"
+                        />
+                      ) : (
+                        <div>
+                          <div className={`text-sm font-medium ${
+                            new Date(employee.dueDate) < new Date() && employee.balance > 0
+                              ? 'text-red-600'
+                              : 'text-gray-900'
+                          }`}>
+                            {new Date(employee.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </div>
+                          <div className="text-xs text-gray-500">Day {employee.salaryDueDay} of month</div>
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex space-x-1">

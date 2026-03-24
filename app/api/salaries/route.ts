@@ -29,6 +29,7 @@ export async function GET() {
         phone: true,
         role: true,
         monthlySalary: true,
+        salaryDueDay: true,
         salaryPayments: {
           where: {
             month: currentMonth,
@@ -46,12 +47,23 @@ export async function GET() {
       const totalPaid = employee.salaryPayments.reduce((sum, payment) => sum + payment.amount, 0)
       const balance = (employee.monthlySalary || 0) - totalPaid
 
+      // Calculate next due date
+      const dueDay = employee.salaryDueDay || 1
+      const now = new Date()
+      let dueDate = new Date(currentYear, currentMonth - 1, dueDay)
+      // If already past this month's due day and fully paid, show next month
+      if (now > dueDate && balance <= 0) {
+        dueDate = new Date(currentYear, currentMonth, dueDay)
+      }
+
       return {
         id: employee.id,
         name: employee.name,
         phone: employee.phone,
         role: employee.role,
         monthlySalary: employee.monthlySalary || 0,
+        salaryDueDay: dueDay,
+        dueDate: dueDate.toISOString(),
         totalPaid,
         balance,
         payments: employee.salaryPayments
@@ -72,7 +84,8 @@ export async function GET() {
 // Update employee monthly salary
 const updateSalarySchema = z.object({
   userId: z.string(),
-  monthlySalary: z.number().min(0)
+  monthlySalary: z.number().min(0),
+  salaryDueDay: z.number().int().min(1).max(31).optional(),
 })
 
 export async function PUT(request: NextRequest) {
@@ -84,17 +97,21 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { userId, monthlySalary } = updateSalarySchema.parse(body)
+    const { userId, monthlySalary, salaryDueDay } = updateSalarySchema.parse(body)
 
     const updatedUser = await prisma.user.update({
       where: { id: userId },
-      data: { monthlySalary },
+      data: {
+        monthlySalary,
+        ...(salaryDueDay !== undefined && { salaryDueDay }),
+      },
       select: {
         id: true,
         name: true,
         phone: true,
         role: true,
-        monthlySalary: true
+        monthlySalary: true,
+        salaryDueDay: true,
       }
     })
 
