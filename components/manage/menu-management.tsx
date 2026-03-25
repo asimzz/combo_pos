@@ -77,8 +77,8 @@ export function MenuManagement({}: MenuManagementProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...editForm,
-          price: Math.round(parseFloat(editForm.price) * 100),
-          cost: Math.round(parseFloat(editForm.cost) * 100),
+          price: parseFloat(editForm.price),
+          cost: parseFloat(editForm.cost),
         })
       })
 
@@ -99,8 +99,8 @@ export function MenuManagement({}: MenuManagementProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...editForm,
-          price: Math.round(parseFloat(editForm.price) * 100),
-          cost: Math.round(parseFloat(editForm.cost) * 100),
+          price: parseFloat(editForm.price),
+          cost: parseFloat(editForm.cost),
         })
       })
 
