@@ -148,12 +148,15 @@ export function MenuManagement({}: MenuManagementProps) {
         body: JSON.stringify({ active: !currentActive })
       })
 
-      if (!response.ok) throw new Error('Failed to update availability')
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to update availability')
+      }
 
       await fetchMenuItems()
       toast.success(`Item ${!currentActive ? 'enabled' : 'disabled'} successfully`)
-    } catch (error) {
-      toast.error('Failed to update availability')
+    } catch (error: any) {
+      toast.error(error.message)
     }
   }
 
