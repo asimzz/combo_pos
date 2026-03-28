@@ -30,16 +30,12 @@ export async function GET(request: NextRequest) {
     let dateFilter: any = {}
 
     if (dateParam) {
-      const start = new Date(dateParam)
-      start.setHours(0, 0, 0, 0)
-      const end = new Date(dateParam)
-      end.setHours(23, 59, 59, 999)
+      const start = new Date(dateParam + 'T00:00:00.000Z')
+      const end = new Date(dateParam + 'T23:59:59.999Z')
       dateFilter = { date: { gte: start, lte: end } }
     } else if (from && to) {
-      const start = new Date(from)
-      start.setHours(0, 0, 0, 0)
-      const end = new Date(to)
-      end.setHours(23, 59, 59, 999)
+      const start = new Date(from + 'T00:00:00.000Z')
+      const end = new Date(to + 'T23:59:59.999Z')
       dateFilter = { date: { gte: start, lte: end } }
     }
 
@@ -89,7 +85,7 @@ export async function POST(request: NextRequest) {
         amount: validatedData.amount,
         description: validatedData.description || null,
         categoryId: validatedData.categoryId,
-        date: validatedData.date ? new Date(validatedData.date) : new Date(),
+        date: validatedData.date ? new Date(validatedData.date + 'T00:00:00.000Z') : new Date(),
         userId: session.user.id,
       },
       include: {
