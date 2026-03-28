@@ -17,6 +17,7 @@ interface MaterialEntry {
   amount: number
   description: string | null
   date: string
+  createdAt: string
   category: { id: string; name: string; unit: string }
   user: { name: string }
 }
@@ -447,7 +448,7 @@ export function MaterialManagement() {
               </div>
               <div className="flex items-center space-x-3">
                 <span className="text-xs text-gray-400">
-                  {new Date(entry.date).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                  {new Date(entry.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                 </span>
                 <button
                   onClick={() => handleDeleteEntry(entry.id)}
