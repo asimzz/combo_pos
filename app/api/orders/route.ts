@@ -14,6 +14,7 @@ const createOrderSchema = z.object({
     z.object({
       menuItemId: z.string(),
       quantity: z.number().min(1),
+      unitPrice: z.number().min(0).optional(),
       notes: z.string().optional(),
     }),
   ),
@@ -75,13 +76,14 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const itemTotal = Number(menuItem.price) * item.quantity;
+      const unitPrice = item.unitPrice ?? Number(menuItem.price);
+      const itemTotal = unitPrice * item.quantity;
       subtotal += itemTotal;
 
       return {
         menuItemId: item.menuItemId,
         quantity: item.quantity,
-        unitPrice: menuItem.price,
+        unitPrice,
         total: itemTotal,
         notes: item.notes,
       };

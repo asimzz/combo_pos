@@ -27,6 +27,8 @@ export type CartItem = {
   menuItemId: string
   takeaway?: boolean
   takeawayCharge?: number
+  priceAdjustment?: number
+  adjustmentReason?: string
 }
 
 export type OrderSummary = {

@@ -14,8 +14,8 @@ const updateStatusSchema = z.object({
 const VALID_TRANSITIONS: Record<string, string[]> = {
   PENDING: ['PREPARING', 'CANCELLED'],
   PREPARING: ['READY', 'CANCELLED'],
-  READY: ['SERVED'],
-  SERVED: [],
+  READY: ['SERVED', 'CANCELLED'],
+  SERVED: ['CANCELLED'],
   CANCELLED: [],
 }
 

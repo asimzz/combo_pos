@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { CartItem } from '@/types'
 import { formatPrice } from '@/lib/utils'
-import { Minus, Plus, X, DollarSign, PackageCheck } from 'lucide-react'
+import { Minus, Plus, X, DollarSign, PackageCheck, Edit } from 'lucide-react'
 
 interface CartProps {
   cart: CartItem[]
@@ -11,6 +11,7 @@ interface CartProps {
   onUpdateQuantity: (menuItemId: string, quantity: number) => void
   onUpdateNotes: (menuItemId: string, notes: string) => void
   onUpdateTakeaway: (menuItemId: string, takeaway: boolean, takeawayCharge: number) => void
+  onUpdatePrice: (menuItemId: string, priceAdjustment: number, adjustmentReason: string) => void
   onClearCart: () => void
   onSubmitOrder: (orderData: {
     customerName?: string
@@ -27,6 +28,7 @@ export function Cart({
   onUpdateQuantity,
   onUpdateNotes,
   onUpdateTakeaway,
+  onUpdatePrice,
   onClearCart,
   onSubmitOrder,
 }: CartProps) {
@@ -36,8 +38,9 @@ export function Cart({
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'MOMO'>('CASH')
   const [discount, setDiscount] = useState(0)
   const [showCheckout, setShowCheckout] = useState(false)
+  const [showPriceAdjust, setShowPriceAdjust] = useState<Record<string, boolean>>({})
 
-  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0)
+  const subtotal = cart.reduce((sum, item) => sum + ((item.price + (item.priceAdjustment || 0)) * item.quantity), 0)
   const takeawayTotal = cart.reduce((sum, item) => sum + (item.takeaway ? (item.takeawayCharge || 0) : 0), 0)
   const total = subtotal + takeawayTotal - discount
 
@@ -121,9 +124,14 @@ export function Cart({
                   <Plus className="w-3 h-3" />
                 </button>
               </div>
-              <span className="font-semibold">
-                {formatPrice(item.price * item.quantity + (item.takeaway ? (item.takeawayCharge || 0) : 0))}
-              </span>
+              <div className="text-right">
+                <span className="font-semibold">
+                  {formatPrice((item.price + (item.priceAdjustment || 0)) * item.quantity + (item.takeaway ? (item.takeawayCharge || 0) : 0))}
+                </span>
+                {item.priceAdjustment ? (
+                  <div className="text-xs text-orange-600">+{formatPrice(item.priceAdjustment)}/item</div>
+                ) : null}
+              </div>
             </div>
 
             <input
@@ -133,6 +141,44 @@ export function Cart({
               onChange={(e) => onUpdateNotes(item.menuItemId, e.target.value)}
               className="input text-sm mb-2"
             />
+
+            {/* Price Adjustment */}
+            <div className="flex items-center space-x-2 mb-2">
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showPriceAdjust[item.menuItemId] || !!item.priceAdjustment}
+                  onChange={(e) => {
+                    setShowPriceAdjust(prev => ({ ...prev, [item.menuItemId]: e.target.checked }))
+                    if (!e.target.checked) {
+                      onUpdatePrice(item.menuItemId, 0, '')
+                    }
+                  }}
+                  className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
+                <Edit className="w-3.5 h-3.5 text-gray-500" />
+                <span className="text-xs text-gray-600">Adjust price</span>
+              </label>
+            </div>
+            {(showPriceAdjust[item.menuItemId] || !!item.priceAdjustment) && (
+              <div className="space-y-2 mb-2">
+                <input
+                  type="number"
+                  placeholder="+ Amount (RWF)"
+                  min="0"
+                  value={item.priceAdjustment || ''}
+                  onChange={(e) => onUpdatePrice(item.menuItemId, Number(e.target.value) || 0, item.adjustmentReason || '')}
+                  className="input text-xs w-full py-1"
+                />
+                <input
+                  type="text"
+                  placeholder="Reason"
+                  value={item.adjustmentReason || ''}
+                  onChange={(e) => onUpdatePrice(item.menuItemId, item.priceAdjustment || 0, e.target.value)}
+                  className="input text-xs w-full py-1"
+                />
+              </div>
+            )}
 
             {/* Takeaway */}
             <div className="flex items-center space-x-2">
@@ -153,7 +199,7 @@ export function Cart({
                   min="0"
                   value={item.takeawayCharge || ''}
                   onChange={(e) => onUpdateTakeaway(item.menuItemId, true, Number(e.target.value) || 0)}
-                  className="input text-xs w-full sm:w-28 py-1"
+                  className="input text-xs flex-1 py-1"
                 />
               )}
             </div>

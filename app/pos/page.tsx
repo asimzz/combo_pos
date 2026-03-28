@@ -102,6 +102,16 @@ export default function POSPage() {
     )
   }
 
+  const updatePrice = (menuItemId: string, priceAdjustment: number, adjustmentReason: string) => {
+    setCart(prevCart =>
+      prevCart.map(item =>
+        item.menuItemId === menuItemId
+          ? { ...item, priceAdjustment, adjustmentReason }
+          : item
+      )
+    )
+  }
+
   const updateTakeaway = (menuItemId: string, takeaway: boolean, takeawayCharge: number) => {
     setCart(prevCart =>
       prevCart.map(item =>
@@ -131,8 +141,10 @@ export default function POSPage() {
         items: cart.map(item => ({
           menuItemId: item.menuItemId,
           quantity: item.quantity,
+          unitPrice: item.priceAdjustment ? item.price + item.priceAdjustment : undefined,
           notes: [
             item.notes,
+            item.priceAdjustment ? `[Price +${item.priceAdjustment} RWF: ${item.adjustmentReason || 'adjusted'}]` : null,
             item.takeaway ? `[TAKEAWAY${item.takeawayCharge ? ` +${item.takeawayCharge} RWF` : ''}]` : null,
           ].filter(Boolean).join(' ') || undefined,
         })),
@@ -211,6 +223,7 @@ export default function POSPage() {
             onUpdateQuantity={updateQuantity}
             onUpdateNotes={updateNotes}
             onUpdateTakeaway={updateTakeaway}
+            onUpdatePrice={updatePrice}
             onClearCart={clearCart}
             onSubmitOrder={handleOrderSubmit}
           />
@@ -256,6 +269,7 @@ export default function POSPage() {
                 onUpdateQuantity={updateQuantity}
                 onUpdateNotes={updateNotes}
                 onUpdateTakeaway={updateTakeaway}
+                onUpdatePrice={updatePrice}
                 onClearCart={clearCart}
                 onSubmitOrder={(data) => {
                   handleOrderSubmit(data)
