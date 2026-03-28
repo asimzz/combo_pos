@@ -59,7 +59,7 @@ export function MaterialManagement() {
 
   useEffect(() => {
     fetchSummary()
-  }, [summaryPeriod])
+  }, [summaryPeriod, selectedDate])
 
   const fetchCategories = async () => {
     try {
@@ -90,18 +90,18 @@ export function MaterialManagement() {
   }
 
   const fetchSummary = async () => {
-    const now = new Date()
+    const baseDate = new Date(selectedDate + 'T00:00:00')
     let from: string
-    const to = now.toISOString().split('T')[0]
+    const to = selectedDate
 
     if (summaryPeriod === 'today') {
       from = to
     } else if (summaryPeriod === 'week') {
-      const weekAgo = new Date(now)
+      const weekAgo = new Date(baseDate)
       weekAgo.setDate(weekAgo.getDate() - 6)
       from = weekAgo.toISOString().split('T')[0]
     } else {
-      const monthAgo = new Date(now)
+      const monthAgo = new Date(baseDate)
       monthAgo.setDate(monthAgo.getDate() - 29)
       from = monthAgo.toISOString().split('T')[0]
     }
@@ -223,7 +223,7 @@ export function MaterialManagement() {
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
               >
-                {period === 'today' ? 'Today' : period === 'week' ? '7 Days' : '30 Days'}
+                {period === 'today' ? 'This Day' : period === 'week' ? '7 Days' : '30 Days'}
               </button>
             ))}
           </div>
