@@ -21,6 +21,7 @@ model User {
 
   orders Order[]
   stockLogs RawMaterialStockLog[]
+  closedStockSnapshots DailyStockSnapshot[]
   salaryPayments SalaryPayment[]
   expenses Expense[]
   creditEntries CreditEntry[]
@@ -136,6 +137,7 @@ model RawMaterial {
 
   usage RawMaterialUsage[]
   stockLogs RawMaterialStockLog[]
+  dailySnapshots DailyStockSnapshot[]
 
   @@map("raw_materials")
 }
@@ -166,6 +168,23 @@ model RawMaterialStockLog {
   user          User @relation(fields: [userId], references: [id])
 
   @@map("raw_material_stock_logs")
+}
+
+model DailyStockSnapshot {
+  id            String   @id @default(cuid())
+  date          String   // "YYYY-MM-DD"
+  openingStock  Float
+  closingStock  Float
+  closedAt      DateTime @default(now())
+
+  rawMaterialId String
+  rawMaterial   RawMaterial @relation(fields: [rawMaterialId], references: [id])
+  closedById    String
+  closedBy      User @relation(fields: [closedById], references: [id])
+
+  @@unique([date, rawMaterialId])
+  @@index([date])
+  @@map("daily_stock_snapshots")
 }
 
 model DailySales {
