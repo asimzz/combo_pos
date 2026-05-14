@@ -328,6 +328,20 @@ model MaterialEntry {
   @@map("material_entries")
 }
 
+model SpecialOrder {
+  id            String              @id @default(cuid())
+  customerPhone String
+  description   String
+  type          SpecialOrderType    @default(SPECIAL)
+  status        SpecialOrderStatus  @default(OPEN)
+  resolution    String?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@index([status, createdAt])
+  @@map("special_orders")
+}
+
 model DailyOrderCounter {
   id           String   @id @default(cuid())
   date         String   @unique // YYYY-MM-DD format
@@ -366,4 +380,15 @@ enum StockLogType {
   OUT
   ADJUSTMENT
   WASTE
+}
+
+enum SpecialOrderType {
+  SPECIAL
+  HANDOFF
+}
+
+enum SpecialOrderStatus {
+  OPEN
+  RESOLVED
+  CANCELLED
 }
