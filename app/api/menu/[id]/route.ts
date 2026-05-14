@@ -10,7 +10,6 @@ const updateMenuItemSchema = z.object({
   name: z.string().min(1).optional(),
   description: z.string().optional(),
   price: z.number().min(0).optional(),
-  cost: z.number().min(0).optional(),
   categoryId: z.string().optional(),
   featured: z.boolean().optional(),
   active: z.boolean().optional(),

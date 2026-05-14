@@ -5,6 +5,7 @@ import { OrderWithItems } from "@/types";
 import { formatDate, formatPrice, getRandomReceiptMessage } from "@/lib/utils";
 import { Printer } from "lucide-react";
 import QRCode from "qrcode";
+import { Button } from "@/components/ui/button";
 
 interface CustomerReceiptProps {
   order: OrderWithItems;
@@ -56,13 +57,14 @@ export function CustomerReceipt({
       <div className="space-y-4">
         {showPrintButton && (
           <div className="flex justify-end no-print">
-            <button
+            <Button
+              variant="primary"
+              size="sm"
+              leftIcon={<Printer className="h-4 w-4" />}
               onClick={handlePrint}
-              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center space-x-2"
             >
-              <Printer className="w-4 h-4" />
-              <span>Print Customer Receipt</span>
-            </button>
+              Print customer receipt
+            </Button>
           </div>
         )}
 

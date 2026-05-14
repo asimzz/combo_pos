@@ -36,11 +36,10 @@ export async function generateDailyOrderNumber(prisma: any): Promise<string> {
       },
     })
 
-    return counter.counter.toString()
+    return `${today}-${String(counter.counter).padStart(3, '0')}`
   } catch (error) {
     console.error('Error generating daily order number:', error)
-    // Fallback to timestamp-based number if database operation fails
-    return Date.now().toString().slice(-6)
+    return `${today}-${Date.now().toString().slice(-6)}`
   }
 }
 

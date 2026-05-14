@@ -10,7 +10,6 @@ const createMenuItemSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
   price: z.number().min(0),
-  cost: z.number().min(0),
   categoryId: z.string(),
   featured: z.boolean().default(false),
   active: z.boolean().default(true),

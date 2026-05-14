@@ -51,7 +51,7 @@ export type DashboardStats = {
 }
 
 export type PaymentMethod = 'CASH' | 'MOMO'
-export type OrderStatus = 'PENDING' | 'PREPARING' | 'READY' | 'SERVED' | 'CANCELLED'
+export type OrderStatus = 'COMPLETED' | 'CANCELLED'
 
 export type UserWithSalaryInfo = User & {
   totalPaid: number

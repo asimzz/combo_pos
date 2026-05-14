@@ -2,8 +2,16 @@
 
 import { useState, useEffect } from 'react'
 import { Plus, Trash2, Calendar, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
 import { formatPrice } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
+import { Modal } from '@/components/ui/modal'
+import { Pills } from '@/components/ui/pills'
+import { IconButton } from '@/components/ui/icon-button'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 interface MaterialCategory {
   id: string
@@ -28,26 +36,28 @@ interface MaterialData {
   byCategory: Record<string, number>
 }
 
+type Unit = 'kg' | 'g' | 'L' | 'mL' | 'pcs' | 'box' | 'pack' | 'bag'
+
 export function MaterialManagement() {
   const [categories, setCategories] = useState<MaterialCategory[]>([])
   const [materialData, setMaterialData] = useState<MaterialData>({ entries: [], total: 0, byCategory: {} })
   const [loading, setLoading] = useState(true)
-  const [selectedDate, setSelectedDate] = useState(() => {
-    return new Date().toISOString().split('T')[0]
-  })
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0])
   const [showAddForm, setShowAddForm] = useState(false)
   const [showNewCategory, setShowNewCategory] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
-  const [newCategoryUnit, setNewCategoryUnit] = useState('kg')
+  const [newCategoryUnit, setNewCategoryUnit] = useState<Unit>('kg')
   const [form, setForm] = useState({
     quantity: '',
     amount: '',
     description: '',
     categoryId: '',
   })
-
   const [summaryPeriod, setSummaryPeriod] = useState<'today' | 'week' | 'month'>('today')
   const [summaryData, setSummaryData] = useState<MaterialData>({ entries: [], total: 0, byCategory: {} })
+  const [submittingEntry, setSubmittingEntry] = useState(false)
+  const [submittingCategory, setSubmittingCategory] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<MaterialEntry | null>(null)
 
   useEffect(() => {
     fetchCategories()
@@ -68,9 +78,9 @@ export function MaterialManagement() {
       const data = await response.json()
       setCategories(data)
       if (data.length > 0 && !form.categoryId) {
-        setForm(prev => ({ ...prev, categoryId: data[0].id }))
+        setForm((prev) => ({ ...prev, categoryId: data[0].id }))
       }
-    } catch (error) {
+    } catch {
       toast.error('Failed to load material categories')
     }
   }
@@ -82,7 +92,7 @@ export function MaterialManagement() {
       if (!response.ok) throw new Error('Failed to fetch entries')
       const data = await response.json()
       setMaterialData(data)
-    } catch (error) {
+    } catch {
       toast.error('Failed to load material entries')
     } finally {
       setLoading(false)
@@ -93,7 +103,6 @@ export function MaterialManagement() {
     const baseDate = new Date(selectedDate + 'T00:00:00')
     let from: string
     const to = selectedDate
-
     if (summaryPeriod === 'today') {
       from = to
     } else if (summaryPeriod === 'week') {
@@ -105,19 +114,22 @@ export function MaterialManagement() {
       monthAgo.setDate(monthAgo.getDate() - 29)
       from = monthAgo.toISOString().split('T')[0]
     }
-
     try {
       const response = await fetch(`/api/materials?from=${from}&to=${to}`)
       if (!response.ok) throw new Error('Failed to fetch summary')
       const data = await response.json()
       setSummaryData(data)
     } catch {
-      // Silent fail for summary
+      /* silent */
     }
   }
 
-  const handleAddEntry = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleAddEntry = async () => {
+    if (!form.categoryId || !form.amount) {
+      toast.error('Category and cost are required')
+      return
+    }
+    setSubmittingEntry(true)
     try {
       const response = await fetch('/api/materials', {
         method: 'POST',
@@ -130,26 +142,26 @@ export function MaterialManagement() {
           date: selectedDate,
         }),
       })
-
       if (!response.ok) {
         const error = await response.json()
         throw new Error(error.error || 'Failed to add entry')
       }
-
-      toast.success('Material entry added!')
+      toast.success('Material entry added')
       setForm({ quantity: '', amount: '', description: '', categoryId: categories[0]?.id || '' })
+      setSubmittingEntry(false)
       setShowAddForm(false)
       fetchEntries()
       fetchSummary()
     } catch (error: any) {
+      setSubmittingEntry(false)
       toast.error(error.message)
     }
   }
 
-  const handleDeleteEntry = async (id: string) => {
-    if (!confirm('Delete this entry?')) return
+  const performDelete = async () => {
+    if (!deleteTarget) return
     try {
-      const response = await fetch(`/api/materials?id=${id}`, { method: 'DELETE' })
+      const response = await fetch(`/api/materials?id=${deleteTarget.id}`, { method: 'DELETE' })
       if (!response.ok) throw new Error('Failed to delete')
       toast.success('Entry deleted')
       fetchEntries()
@@ -159,26 +171,30 @@ export function MaterialManagement() {
     }
   }
 
-  const handleAddCategory = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim()) {
+      toast.error('Name is required')
+      return
+    }
+    setSubmittingCategory(true)
     try {
       const response = await fetch('/api/materials/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newCategoryName, unit: newCategoryUnit }),
       })
-
       if (!response.ok) {
         const data = await response.json()
         throw new Error(data.error || 'Failed to add category')
       }
-
-      toast.success('Category added!')
+      toast.success('Category added')
       setNewCategoryName('')
       setNewCategoryUnit('kg')
+      setSubmittingCategory(false)
       setShowNewCategory(false)
       fetchCategories()
     } catch (error: any) {
+      setSubmittingCategory(false)
       toast.error(error.message)
     }
   }
@@ -189,7 +205,7 @@ export function MaterialManagement() {
     setSelectedDate(date.toISOString().split('T')[0])
   }
 
-  const selectedCategory = categories.find(c => c.id === form.categoryId)
+  const selectedCategory = categories.find((c) => c.id === form.categoryId)
   const isToday = selectedDate === new Date().toISOString().split('T')[0]
 
   const formatDisplayDate = (dateStr: string) => {
@@ -197,270 +213,254 @@ export function MaterialManagement() {
     return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })
   }
 
-  if (loading && categories.length === 0) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
-      </div>
-    )
-  }
-
   return (
-    <div className="p-6">
-      {/* Summary Cards */}
-      <div className="mb-6">
-        <div className="flex items-center space-x-2 mb-3">
-          <TrendingUp className="w-5 h-5 text-gray-600" />
-          <h3 className="text-sm font-medium text-gray-600 uppercase tracking-wide">Materials Summary</h3>
-          <div className="flex ml-auto space-x-1">
-            {(['today', 'week', 'month'] as const).map((period) => (
-              <button
-                key={period}
-                onClick={() => setSummaryPeriod(period)}
-                className={`px-3 py-1 text-xs rounded-full ${
-                  summaryPeriod === period
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                {period === 'today' ? 'This Day' : period === 'week' ? '7 Days' : '30 Days'}
-              </button>
-            ))}
+    <div className="space-y-6 p-6">
+      <div>
+        <div className="mb-3 flex items-center gap-2">
+          <TrendingUp className="h-4 w-4 text-muted" />
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">Materials summary</h3>
+          <div className="ml-auto">
+            <Pills
+              value={summaryPeriod}
+              onChange={setSummaryPeriod}
+              options={[
+                { value: 'today', label: 'Day' },
+                { value: 'week', label: '7d' },
+                { value: 'month', label: '30d' },
+              ]}
+            />
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="bg-orange-50 border border-orange-100 rounded-lg p-3">
-            <p className="text-xs text-orange-600 font-medium">Total Materials</p>
-            <p className="text-lg font-bold text-orange-700">{formatPrice(summaryData.total)}</p>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <div className="rounded-xl border border-amber-100 bg-amber-50 p-3">
+            <p className="text-xs font-medium text-amber-700">Total materials</p>
+            <p className="mt-1 text-lg font-bold text-amber-800 tabular-nums">{formatPrice(summaryData.total)}</p>
           </div>
           {Object.entries(summaryData.byCategory)
             .sort(([, a], [, b]) => b - a)
             .slice(0, 3)
             .map(([category, amount]) => (
-              <div key={category} className="bg-gray-50 border border-gray-100 rounded-lg p-3">
-                <p className="text-xs text-gray-600 font-medium truncate">{category}</p>
-                <p className="text-lg font-bold text-gray-800">{formatPrice(amount)}</p>
+              <div key={category} className="rounded-xl border border-card-border bg-white p-3">
+                <p className="truncate text-xs font-medium text-muted">{category}</p>
+                <p className="mt-1 text-lg font-bold text-gray-900 tabular-nums">{formatPrice(amount)}</p>
               </div>
             ))}
         </div>
       </div>
 
-      {/* Date Navigation & Add Button */}
-      <div className="flex justify-between items-center mb-4">
-        <div className="flex items-center space-x-3">
-          <button onClick={() => navigateDate(-1)} className="p-1 hover:bg-gray-100 rounded">
-            <ChevronLeft className="w-5 h-5 text-gray-600" />
-          </button>
-          <div className="flex items-center space-x-2">
-            <Calendar className="w-4 h-4 text-gray-500" />
+      <div className="flex flex-col items-stretch justify-between gap-3 sm:flex-row sm:items-center">
+        <div className="flex items-center gap-2">
+          <IconButton aria-label="Previous day" onClick={() => navigateDate(-1)}>
+            <ChevronLeft className="h-4 w-4" />
+          </IconButton>
+          <div className="flex items-center gap-2 rounded-lg border border-card-border bg-white px-3 py-1.5">
+            <Calendar className="h-4 w-4 text-muted" />
             <input
               type="date"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="text-sm font-medium text-gray-900 border-none bg-transparent cursor-pointer"
+              className="cursor-pointer bg-transparent text-sm font-medium text-gray-900 focus:outline-none"
             />
-            {isToday && (
-              <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Today</span>
-            )}
+            {isToday && <Badge variant="success" size="sm">Today</Badge>}
           </div>
-          <button onClick={() => navigateDate(1)} className="p-1 hover:bg-gray-100 rounded">
-            <ChevronRight className="w-5 h-5 text-gray-600" />
-          </button>
+          <IconButton aria-label="Next day" onClick={() => navigateDate(1)}>
+            <ChevronRight className="h-4 w-4" />
+          </IconButton>
         </div>
 
-        <div className="flex space-x-2">
-          <button
-            onClick={() => setShowNewCategory(true)}
-            className="btn btn-outline px-3 py-2 text-sm"
-          >
-            + Category
-          </button>
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="btn btn-primary px-4 py-2"
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Add Material
-          </button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setShowNewCategory(true)}>
+            New category
+          </Button>
+          <Button variant="primary" size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={() => setShowAddForm(true)}>
+            Add material
+          </Button>
         </div>
       </div>
 
-      {/* New Category Form */}
-      {showNewCategory && (
-        <div className="mb-4 p-3 border border-gray-200 rounded-lg bg-gray-50">
-          <form onSubmit={handleAddCategory} className="flex space-x-2">
-            <input
-              type="text"
-              placeholder="Category name (e.g. Chicken, Bread, Oil)"
-              required
-              value={newCategoryName}
-              onChange={(e) => setNewCategoryName(e.target.value)}
-              className="input flex-1"
-            />
-            <select
-              value={newCategoryUnit}
-              onChange={(e) => setNewCategoryUnit(e.target.value)}
-              className="input w-24"
-            >
-              <option value="kg">kg</option>
-              <option value="g">g</option>
-              <option value="L">L</option>
-              <option value="mL">mL</option>
-              <option value="pcs">pcs</option>
-              <option value="box">box</option>
-              <option value="pack">pack</option>
-              <option value="bag">bag</option>
-            </select>
-            <button type="submit" className="btn btn-primary btn-sm">Add</button>
-            <button
-              type="button"
-              onClick={() => { setShowNewCategory(false); setNewCategoryName(''); setNewCategoryUnit('kg') }}
-              className="btn btn-outline btn-sm"
-            >
-              Cancel
-            </button>
-          </form>
-        </div>
-      )}
-
-      {/* Add Entry Form */}
-      {showAddForm && (
-        <div className="mb-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
-          <h4 className="font-medium text-gray-900 mb-3">Add Material Entry</h4>
-          <form onSubmit={handleAddEntry} className="grid grid-cols-1 md:grid-cols-4 gap-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
-              <select
-                value={form.categoryId}
-                onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
-                className="input"
-                required
-              >
-                {categories.length === 0 && <option value="">No categories - add one first</option>}
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>{cat.name} ({cat.unit})</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Quantity ({selectedCategory?.unit || 'unit'})
-              </label>
-              <input
-                type="number"
-                placeholder="Qty"
-                step="0.1"
-                min="0.1"
-                value={form.quantity}
-                onChange={(e) => setForm({ ...form, quantity: e.target.value })}
-                className="input"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Cost (RWF)</label>
-              <input
-                type="number"
-                placeholder="Cost"
-                required
-                min="1"
-                value={form.amount}
-                onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                className="input"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Note (optional)</label>
-              <input
-                type="text"
-                placeholder="Description"
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                className="input"
-              />
-            </div>
-            <div className="md:col-span-4 flex space-x-2">
-              <button type="submit" className="btn btn-primary btn-sm" disabled={categories.length === 0}>
-                Save Entry
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowAddForm(false)}
-                className="btn btn-outline btn-sm"
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
-
-      {/* Daily Total */}
-      <div className="flex items-center justify-between mb-3 px-1">
-        <h3 className="text-sm font-medium text-gray-600">
-          {formatDisplayDate(selectedDate)}
-        </h3>
-        <span className="text-sm font-bold text-orange-600">
+      <div className="flex items-center justify-between px-1">
+        <h3 className="text-sm font-medium text-muted">{formatDisplayDate(selectedDate)}</h3>
+        <span className="text-sm font-bold text-amber-700 tabular-nums">
           Total: {formatPrice(materialData.total)}
         </span>
       </div>
 
-      {/* Entries List */}
       {loading ? (
-        <div className="flex items-center justify-center p-8">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-500"></div>
+        <div className="rounded-xl border border-card-border bg-white py-12 text-center text-sm text-muted">
+          Loading…
         </div>
       ) : materialData.entries.length === 0 ? (
-        <div className="text-center py-12 text-gray-500">
-          <Calendar className="w-10 h-10 mx-auto mb-3 text-gray-300" />
-          <p>No material entries recorded for this day</p>
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="mt-3 text-primary-600 hover:text-primary-700 text-sm font-medium"
-          >
+        <div className="rounded-xl border border-card-border bg-white py-12 text-center">
+          <Calendar className="mx-auto mb-3 h-8 w-8 text-muted" />
+          <p className="text-sm text-muted">No material entries recorded for this day</p>
+          <Button variant="ghost" size="sm" className="mt-3" onClick={() => setShowAddForm(true)}>
             + Add a material entry
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="space-y-2">
           {materialData.entries.map((entry) => (
             <div
               key={entry.id}
-              className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-lg hover:border-gray-200"
+              className="flex items-center justify-between rounded-lg border border-card-border bg-white p-3 transition-colors hover:bg-surface"
             >
-              <div className="flex items-center space-x-3">
-                <span className="text-xs bg-orange-100 text-orange-600 px-2 py-1 rounded font-medium">
-                  {entry.category.name}
-                </span>
+              <div className="flex items-center gap-3">
+                <Badge variant="warning" size="sm">{entry.category.name}</Badge>
                 <div>
-                  <div className="flex items-center space-x-2">
-                    <span className="font-semibold text-gray-900">{formatPrice(entry.amount)}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-gray-900 tabular-nums">{formatPrice(entry.amount)}</span>
                     {entry.quantity && (
-                      <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
+                      <Badge variant="neutral" size="sm">
                         {entry.quantity} {entry.category.unit}
-                      </span>
+                      </Badge>
                     )}
                   </div>
-                  {entry.description && (
-                    <p className="text-sm text-gray-500">{entry.description}</p>
-                  )}
+                  {entry.description && <p className="text-xs text-muted">{entry.description}</p>}
                 </div>
               </div>
-              <div className="flex items-center space-x-3">
-                <span className="text-xs text-gray-400">
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-muted tabular-nums">
                   {new Date(entry.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                 </span>
-                <button
-                  onClick={() => handleDeleteEntry(entry.id)}
-                  className="p-1 text-gray-400 hover:text-red-600"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+                <IconButton aria-label="Delete entry" variant="danger" onClick={() => setDeleteTarget(entry)}>
+                  <Trash2 className="h-4 w-4" />
+                </IconButton>
               </div>
             </div>
           ))}
         </div>
       )}
+
+      <Modal
+        open={showAddForm}
+        onClose={() => setShowAddForm(false)}
+        title="Add material entry"
+        width="lg"
+        footer={
+          <>
+            <Button variant="outline" disabled={submittingEntry} onClick={() => setShowAddForm(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              loading={submittingEntry}
+              disabled={submittingEntry || categories.length === 0}
+              onClick={handleAddEntry}
+            >
+              {submittingEntry ? 'Saving…' : 'Save entry'}
+            </Button>
+          </>
+        }
+      >
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="space-y-1">
+            <label className="text-xs font-semibold uppercase tracking-wide text-muted">Category</label>
+            <Select
+              value={form.categoryId}
+              onChange={(v) => setForm({ ...form, categoryId: v })}
+              options={categories.map((c) => ({ value: c.id, label: `${c.name} (${c.unit})` }))}
+              placeholder={categories.length === 0 ? 'Add a category first' : 'Select category'}
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+              Quantity ({selectedCategory?.unit || 'unit'})
+            </label>
+            <Input
+              type="number"
+              placeholder="0"
+              step="0.1"
+              min="0.1"
+              value={form.quantity}
+              onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-semibold uppercase tracking-wide text-muted">Cost (RWF)</label>
+            <Input
+              type="number"
+              placeholder="0"
+              min="1"
+              value={form.amount}
+              onChange={(e) => setForm({ ...form, amount: e.target.value })}
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-semibold uppercase tracking-wide text-muted">Note</label>
+            <Input
+              type="text"
+              placeholder="Optional"
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+            />
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={showNewCategory}
+        onClose={() => setShowNewCategory(false)}
+        title="New material category"
+        width="md"
+        footer={
+          <>
+            <Button variant="outline" disabled={submittingCategory} onClick={() => setShowNewCategory(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              loading={submittingCategory}
+              disabled={submittingCategory}
+              onClick={handleAddCategory}
+            >
+              {submittingCategory ? 'Adding…' : 'Add category'}
+            </Button>
+          </>
+        }
+      >
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_120px]">
+          <div className="space-y-1">
+            <label className="text-xs font-semibold uppercase tracking-wide text-muted">Name</label>
+            <Input
+              type="text"
+              placeholder="Chicken, Bread, Oil…"
+              value={newCategoryName}
+              onChange={(e) => setNewCategoryName(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-semibold uppercase tracking-wide text-muted">Unit</label>
+            <Select<Unit>
+              value={newCategoryUnit}
+              onChange={setNewCategoryUnit}
+              options={[
+                { value: 'kg', label: 'kg' },
+                { value: 'g', label: 'g' },
+                { value: 'L', label: 'L' },
+                { value: 'mL', label: 'mL' },
+                { value: 'pcs', label: 'pcs' },
+                { value: 'box', label: 'box' },
+                { value: 'pack', label: 'pack' },
+                { value: 'bag', label: 'bag' },
+              ]}
+            />
+          </div>
+        </div>
+      </Modal>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={performDelete}
+        title="Delete material entry?"
+        description={
+          deleteTarget
+            ? `This ${deleteTarget.category.name} entry (${formatPrice(deleteTarget.amount)}) will be permanently removed from reports.`
+            : null
+        }
+        confirmLabel="Delete entry"
+      />
     </div>
   )
 }

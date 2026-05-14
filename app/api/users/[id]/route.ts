@@ -91,29 +91,48 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Prevent deleting admin users (safety check)
+    if (params.id === session.user.id) {
+      return NextResponse.json(
+        { error: 'Cannot delete your own account' },
+        { status: 400 }
+      )
+    }
+
     const userToDelete = await prisma.user.findUnique({
       where: { id: params.id },
       select: { role: true }
     })
 
-    if (userToDelete?.role === 'ADMIN') {
+    if (!userToDelete) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 })
+    }
+
+    if (userToDelete.role === 'ADMIN') {
       return NextResponse.json(
         { error: 'Cannot delete admin users' },
         { status: 400 }
       )
     }
 
-    // Delete related records first
-    await prisma.$transaction([
-      prisma.salaryPayment.deleteMany({ where: { userId: params.id } }),
-      prisma.expense.deleteMany({ where: { userId: params.id } }),
-      prisma.creditEntry.deleteMany({ where: { userId: params.id } }),
-      prisma.debtEntry.deleteMany({ where: { userId: params.id } }),
-      prisma.rawMaterialStockLog.deleteMany({ where: { userId: params.id } }),
-      prisma.materialEntry.deleteMany({ where: { userId: params.id } }),
-      prisma.user.delete({ where: { id: params.id } }),
-    ])
+    const deleterId = session.user.id
+
+    await prisma.$transaction(async (tx) => {
+      // Reassign orders to the deleting admin so we don't violate the FK
+      // and we preserve sales history.
+      await tx.order.updateMany({
+        where: { userId: params.id },
+        data: { userId: deleterId },
+      })
+
+      await tx.salaryPayment.deleteMany({ where: { userId: params.id } })
+      await tx.expense.deleteMany({ where: { userId: params.id } })
+      await tx.creditEntry.deleteMany({ where: { userId: params.id } })
+      await tx.debtEntry.deleteMany({ where: { userId: params.id } })
+      await tx.rawMaterialStockLog.deleteMany({ where: { userId: params.id } })
+      await tx.materialEntry.deleteMany({ where: { userId: params.id } })
+
+      await tx.user.delete({ where: { id: params.id } })
+    })
 
     return NextResponse.json({ message: 'User deleted successfully' })
   } catch (error) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { authenticate } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import {
   generateDailyOrderNumber,
@@ -8,6 +9,8 @@ import {
 import { z } from "zod";
 
 export const dynamic = 'force-dynamic'
+
+class OrderValidationError extends Error {}
 
 const createOrderSchema = z.object({
   items: z.array(
@@ -28,15 +31,11 @@ const createOrderSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const sessionUserId = session.user.id;
+    const auth = await authenticate(request);
+    if (auth instanceof NextResponse) return auth;
 
     const user = await prisma.user.findUnique({
-      where: { id: sessionUserId },
+      where: { id: auth.userId },
     });
 
     if (!user) {
@@ -48,33 +47,22 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const data = createOrderSchema.parse(body);
 
-    // Fetch menu items (with stock group) and generate order number in parallel
     const [menuItems, dailyOrderNumber] = await Promise.all([
       prisma.menuItem.findMany({
         where: {
           id: { in: data.items.map((item) => item.menuItemId) },
         },
-        include: { stockGroup: true },
       }),
       generateDailyOrderNumber(prisma),
     ]);
 
-    // Validate stock availability and calculate totals
     let subtotal = 0;
     const orderItems = data.items.map((item) => {
       const menuItem = menuItems.find((mi) => mi.id === item.menuItemId);
-      if (!menuItem) throw new Error(`Menu item ${item.menuItemId} not found`);
+      if (!menuItem)
+        throw new OrderValidationError(`Menu item ${item.menuItemId} not found`);
       if (!menuItem.active)
-        throw new Error(`Menu item ${menuItem.name} is not available`);
-
-      const currentStock = menuItem.stockGroup
-        ? menuItem.stockGroup.stock
-        : (menuItem.stock || 0);
-      if (currentStock < item.quantity) {
-        throw new Error(
-          `Insufficient stock for ${menuItem.name}. Available: ${currentStock}, Requested: ${item.quantity}`,
-        );
-      }
+        throw new OrderValidationError(`Menu item ${menuItem.name} is not available`);
 
       const unitPrice = item.unitPrice ?? Number(menuItem.price);
       const itemTotal = unitPrice * item.quantity;
@@ -91,30 +79,7 @@ export async function POST(request: NextRequest) {
 
     const total = subtotal + data.serviceCharge - data.discount;
 
-    // Build stock deductions — use stock_groups table for grouped items, menu_items for others
-    const stockGroupDeductions = new Map<string, number>();
-    const individualDeductions: { menuItemId: string; quantity: number }[] = [];
-
-    data.items.forEach((item) => {
-      const menuItem = menuItems.find((mi) => mi.id === item.menuItemId);
-      if (menuItem?.stockGroupId) {
-        const current = stockGroupDeductions.get(menuItem.stockGroupId) || 0;
-        stockGroupDeductions.set(menuItem.stockGroupId, current + item.quantity);
-      } else {
-        individualDeductions.push({ menuItemId: item.menuItemId, quantity: item.quantity });
-      }
-    });
-
-    const stockUpdates = [
-      ...individualDeductions.map((item) =>
-        prisma.$executeRaw`UPDATE "menu_items" SET "stock" = "stock" - ${item.quantity} WHERE "id" = ${item.menuItemId}`
-      ),
-      ...Array.from(stockGroupDeductions.entries()).map(([groupId, qty]) =>
-        prisma.$executeRaw`UPDATE "stock_groups" SET "stock" = "stock" - ${qty} WHERE "id" = ${groupId}`
-      ),
-    ];
-
-    const orderCreate = prisma.order.create({
+    const order = await prisma.order.create({
       data: {
         orderNumber: dailyOrderNumber,
         userId: orderUserId,
@@ -127,10 +92,17 @@ export async function POST(request: NextRequest) {
         discount: data.discount,
         total,
         paymentMethod: data.paymentMethod,
-        paymentStatus: "PENDING",
-        status: "PENDING",
+        paymentStatus: "COMPLETED",
+        status: "COMPLETED",
         orderItems: {
           create: orderItems,
+        },
+        payments: {
+          create: {
+            amount: total,
+            method: data.paymentMethod,
+            status: "COMPLETED",
+          },
         },
       },
       include: {
@@ -148,9 +120,6 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const results = await Promise.all([...stockUpdates, orderCreate]);
-    const order = results[results.length - 1];
-
     return NextResponse.json(order);
   } catch (error) {
     console.error("Error creating order:", error);
@@ -160,9 +129,11 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
-    const message = error instanceof Error ? error.message : "Failed to create order";
+    if (error instanceof OrderValidationError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
     return NextResponse.json(
-      { error: message },
+      { error: "Failed to create order" },
       { status: 500 },
     );
   }

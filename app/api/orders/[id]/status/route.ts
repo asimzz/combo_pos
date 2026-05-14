@@ -7,15 +7,11 @@ import { z } from 'zod'
 export const dynamic = 'force-dynamic'
 
 const updateStatusSchema = z.object({
-  status: z.enum(['PENDING', 'PREPARING', 'READY', 'SERVED', 'CANCELLED']),
+  status: z.enum(['COMPLETED', 'CANCELLED']),
 })
 
-// Valid status transitions
 const VALID_TRANSITIONS: Record<string, string[]> = {
-  PENDING: ['PREPARING', 'CANCELLED'],
-  PREPARING: ['READY', 'CANCELLED'],
-  READY: ['SERVED', 'CANCELLED'],
-  SERVED: ['CANCELLED'],
+  COMPLETED: ['CANCELLED'],
   CANCELLED: [],
 }
 
@@ -34,25 +30,12 @@ export async function PATCH(
 
     const currentOrder = await prisma.order.findUnique({
       where: { id: params.id },
-      include: {
-        orderItems: {
-          include: {
-            menuItem: {
-              include: {
-                category: true,
-                stockGroup: true
-              }
-            }
-          }
-        }
-      }
     })
 
     if (!currentOrder) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 })
     }
 
-    // Validate transition
     const allowed = VALID_TRANSITIONS[currentOrder.status] || []
     if (!allowed.includes(status)) {
       return NextResponse.json(
@@ -61,84 +44,40 @@ export async function PATCH(
       )
     }
 
-    // CANCELLED: refund stock since it was deducted at creation
-    if (status === 'CANCELLED') {
-      const groupRefunds = new Map<string, number>()
-      const individualRefunds: { menuItemId: string; quantity: number }[] = []
-
-      currentOrder.orderItems.forEach((orderItem) => {
-        const mi = orderItem.menuItem as any
-        if (mi.stockGroupId) {
-          const current = groupRefunds.get(mi.stockGroupId) || 0
-          groupRefunds.set(mi.stockGroupId, current + orderItem.quantity)
-        } else {
-          individualRefunds.push({ menuItemId: orderItem.menuItemId, quantity: orderItem.quantity })
-        }
-      })
-
-      await Promise.all([
-        ...individualRefunds.map((item) =>
-          prisma.menuItem.update({
-            where: { id: item.menuItemId },
-            data: { stock: { increment: item.quantity } }
-          })
-        ),
-        ...Array.from(groupRefunds.entries()).map(([groupId, qty]) =>
-          prisma.$executeRaw`UPDATE "stock_groups" SET "stock" = "stock" + ${qty} WHERE "id" = ${groupId}`
-        ),
-      ])
-    }
-
-    // SERVED: mark payment as completed
-    if (status === 'SERVED') {
-      const existingPayment = await prisma.payment.findFirst({
-        where: { orderId: params.id }
-      })
-
-      if (!existingPayment) {
-        await prisma.payment.create({
-          data: {
-            amount: currentOrder.total,
-            method: currentOrder.paymentMethod,
-            status: 'COMPLETED',
-            orderId: params.id,
-          }
-        })
-      } else {
-        await prisma.payment.update({
-          where: { id: existingPayment.id },
-          data: { status: 'COMPLETED' }
+    const order = await prisma.$transaction(async (tx) => {
+      if (status === 'CANCELLED') {
+        await tx.payment.updateMany({
+          where: { orderId: params.id },
+          data: { status: 'REFUNDED' },
         })
       }
-    }
 
-    // Update the order status and payment status
-    const order = await prisma.order.update({
-      where: { id: params.id },
-      data: {
-        status,
-        paymentStatus: status === 'SERVED' ? 'COMPLETED' :
-                       status === 'CANCELLED' ? 'REFUNDED' :
-                       currentOrder.paymentStatus,
-      },
-      include: {
-        orderItems: {
-          include: {
-            menuItem: {
-              include: {
-                category: true
-              }
-            }
-          }
+      return tx.order.update({
+        where: { id: params.id },
+        data: {
+          status,
+          paymentStatus:
+            status === 'CANCELLED' ? 'REFUNDED' : currentOrder.paymentStatus,
         },
-        payments: true,
-        user: {
-          select: {
-            name: true,
-            phone: true
-          }
-        }
-      }
+        include: {
+          orderItems: {
+            include: {
+              menuItem: {
+                include: {
+                  category: true,
+                },
+              },
+            },
+          },
+          payments: true,
+          user: {
+            select: {
+              name: true,
+              phone: true,
+            },
+          },
+        },
+      })
     })
 
     return NextResponse.json(order)

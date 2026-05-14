@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react'
 import { QrCode, Smartphone, AlertCircle, CheckCircle, Clock } from 'lucide-react'
 import QRCode from 'qrcode'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Pills } from '@/components/ui/pills'
 
 interface MomoPaymentProps {
   amount: number
@@ -181,152 +184,129 @@ export function MomoPayment({
   }
 
   return (
-    <div className="max-w-md mx-auto bg-white rounded-lg shadow-lg p-6">
+    <div className="mx-auto max-w-md rounded-xl border border-card-border bg-white p-6 shadow-sm">
       {/* Header */}
-      <div className="text-center mb-6">
-        <div className="flex items-center justify-center mb-2">
+      <div className="mb-6 text-center">
+        <div className="mb-2 flex items-center justify-center gap-2">
           <img
             src="/mtn-logo.png"
             alt="MTN MoMo"
-            className="h-8 mr-2"
+            className="h-8"
             onError={(e) => {
-              // Fallback if logo doesn't exist
               e.currentTarget.style.display = 'none'
             }}
           />
-          <h2 className="text-2xl font-bold text-yellow-600">MTN MoMo</h2>
+          <h2 className="text-xl font-bold text-amber-600">MTN MoMo</h2>
         </div>
-        <p className="text-gray-600">Pay {amount.toLocaleString()} RWF</p>
-        <p className="text-sm text-gray-500">Order: {orderNumber}</p>
+        <p className="text-gray-700 tabular-nums">Pay {amount.toLocaleString()} RWF</p>
+        <p className="text-xs text-muted">Order: {orderNumber}</p>
       </div>
 
       {/* Timer */}
-      <div className="text-center mb-4">
-        <div className={`text-2xl font-bold ${timeLeft < 60 ? 'text-red-500' : 'text-blue-600'}`}>
+      <div className="mb-4 text-center">
+        <div className={`text-2xl font-bold tabular-nums ${timeLeft < 60 ? 'text-red-500' : 'text-primary-600'}`}>
           {formatTime(timeLeft)}
         </div>
-        <p className="text-sm text-gray-500">Time remaining</p>
+        <p className="text-xs text-muted">Time remaining</p>
       </div>
 
       {/* Status */}
-      <div className="flex items-center justify-center mb-6">
+      <div className="mb-6 flex items-center justify-center gap-3">
         {getStatusIcon()}
-        <div className="ml-3 text-center">
-          <div className="font-medium">
-            {paymentStatus.status === 'pending' && 'Waiting for payment...'}
-            {paymentStatus.status === 'processing' && 'Processing payment...'}
-            {paymentStatus.status === 'success' && 'Payment successful!'}
+        <div className="text-center">
+          <div className="text-sm font-medium text-gray-900">
+            {paymentStatus.status === 'pending' && 'Waiting for payment…'}
+            {paymentStatus.status === 'processing' && 'Processing payment…'}
+            {paymentStatus.status === 'success' && 'Payment successful'}
             {paymentStatus.status === 'failed' && 'Payment failed'}
             {paymentStatus.status === 'timeout' && 'Payment expired'}
           </div>
-          {paymentStatus.message && (
-            <div className="text-sm text-gray-600 mt-1">{paymentStatus.message}</div>
-          )}
+          {paymentStatus.message && <div className="mt-1 text-xs text-muted">{paymentStatus.message}</div>}
         </div>
       </div>
 
-      {/* Payment Methods */}
       {paymentStatus.status === 'pending' && (
         <div className="space-y-4">
-          {/* Toggle between QR and Phone */}
-          <div className="flex bg-gray-100 rounded-lg p-1">
-            <button
-              onClick={() => setShowQR(true)}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                showQR
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-800'
-              }`}
-            >
-              <QrCode className="w-4 h-4 inline mr-1" />
-              QR Code
-            </button>
-            <button
-              onClick={() => setShowQR(false)}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                !showQR
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-800'
-              }`}
-            >
-              <Smartphone className="w-4 h-4 inline mr-1" />
-              Phone
-            </button>
-          </div>
+          <Pills
+            value={showQR ? 'qr' : 'phone'}
+            onChange={(v) => setShowQR(v === 'qr')}
+            options={[
+              { value: 'qr', label: 'QR Code', icon: <QrCode className="h-3.5 w-3.5" /> },
+              { value: 'phone', label: 'Phone', icon: <Smartphone className="h-3.5 w-3.5" /> },
+            ]}
+            size="md"
+          />
 
-          {/* QR Code Method */}
           {showQR && qrCode && (
-            <div className="text-center space-y-3">
-              <div className="bg-white p-4 rounded-lg border-2 border-gray-200 inline-block">
-                <img src={qrCode} alt="MoMo Payment QR" className="w-48 h-48" />
+            <div className="space-y-3 text-center">
+              <div className="inline-block rounded-lg border border-card-border bg-white p-4">
+                <img src={qrCode} alt="MoMo Payment QR" className="h-48 w-48" />
               </div>
-              <div className="text-sm text-gray-600">
-                <p className="font-medium mb-1">Scan with MTN MoMo app</p>
-                <p>Or dial: <span className="font-mono font-bold">{ussdCode}</span></p>
+              <div className="text-sm text-gray-700">
+                <p className="mb-1 font-medium">Scan with MTN MoMo app</p>
+                <p className="text-muted">
+                  Or dial: <span className="font-mono font-bold text-gray-900">{ussdCode}</span>
+                </p>
               </div>
             </div>
           )}
 
-          {/* Phone Method */}
           {!showQR && (
             <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Phone Number
+              <div className="space-y-1">
+                <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+                  Phone number
                 </label>
-                <input
+                <Input
                   type="tel"
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
                   placeholder="07xxxxxxxx"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-              <button
-                onClick={initiatePhonePayment}
+              <Button
+                variant="primary"
+                size="lg"
+                className="w-full"
+                loading={(paymentStatus.status as string) === 'processing'}
                 disabled={(paymentStatus.status as string) === 'processing' || !phoneNumber}
-                className="w-full bg-yellow-600 text-white py-3 rounded-lg font-medium hover:bg-yellow-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                onClick={initiatePhonePayment}
               >
-                {(paymentStatus.status as string) === 'processing' ? (
-                  <>
-                    <Clock className="w-4 h-4 inline mr-2 animate-spin" />
-                    Sending request...
-                  </>
-                ) : (
-                  'Send Payment Request'
-                )}
-              </button>
+                {(paymentStatus.status as string) === 'processing' ? 'Sending request…' : 'Send payment request'}
+              </Button>
             </div>
           )}
         </div>
       )}
 
-      {/* Actions */}
-      <div className="mt-6 flex space-x-3">
-        <button
-          onClick={onCancel}
+      <div className="mt-6 flex gap-2">
+        <Button
+          variant="outline"
+          size="md"
+          className="flex-1"
           disabled={paymentStatus.status === 'processing'}
-          className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:bg-gray-100 disabled:cursor-not-allowed"
+          onClick={onCancel}
         >
           Cancel
-        </button>
+        </Button>
 
         {paymentStatus.status === 'failed' && (
-          <button
+          <Button
+            variant="primary"
+            size="md"
+            className="flex-1"
             onClick={() => {
               setPaymentStatus({ status: 'pending' })
               generatePaymentCodes()
             }}
-            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
-            Try Again
-          </button>
+            Try again
+          </Button>
         )}
       </div>
 
-      {/* Instructions */}
-      <div className="mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-        <p className="text-xs text-yellow-700">
+      <div className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-3">
+        <p className="text-xs text-amber-800">
           <strong>Note:</strong> This is a demo implementation. In production, this would integrate
           with the official MTN MoMo API for Rwanda (momoapi.mtn.co.rw).
         </p>

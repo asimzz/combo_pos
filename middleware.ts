@@ -7,13 +7,34 @@ export default withAuth(
   {
     callbacks: {
       authorized: ({ token, req }) => {
-        // Protect dashboard routes for admin/manager only
-        if (req.nextUrl.pathname.startsWith('/dashboard')) {
-          return token?.role === 'ADMIN' || token?.role === 'MANAGER'
+        const path = req.nextUrl.pathname
+        const role = token?.role
+
+        // ADMIN-only sections
+        if (
+          path.startsWith('/expenses') ||
+          path.startsWith('/staff') ||
+          path.startsWith('/books') ||
+          path.startsWith('/settings')
+        ) {
+          return role === 'ADMIN'
         }
 
-        // Protect POS routes for authenticated users only
-        if (req.nextUrl.pathname.startsWith('/pos')) {
+        // ADMIN + MANAGER sections
+        if (
+          path.startsWith('/dashboard') ||
+          path.startsWith('/catalog') ||
+          path.startsWith('/stock')
+        ) {
+          return role === 'ADMIN' || role === 'MANAGER'
+        }
+
+        // Any authenticated user
+        if (
+          path.startsWith('/sell') ||
+          path.startsWith('/orders') ||
+          path.startsWith('/inbox')
+        ) {
           return !!token
         }
 
@@ -24,5 +45,16 @@ export default withAuth(
 )
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/pos/:path*']
+  matcher: [
+    '/dashboard/:path*',
+    '/sell/:path*',
+    '/orders/:path*',
+    '/inbox/:path*',
+    '/catalog/:path*',
+    '/stock/:path*',
+    '/expenses/:path*',
+    '/staff/:path*',
+    '/books/:path*',
+    '/settings/:path*',
+  ],
 }

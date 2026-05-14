@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { OrderWithItems } from "@/types";
 import { formatDate } from "@/lib/utils";
 import { Printer } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface KitchenReceiptProps {
   order: OrderWithItems;
@@ -38,34 +39,26 @@ export function KitchenReceipt({
     {} as Record<string, typeof order.orderItems>,
   );
 
-  const isUrgent =
-    order.status === "PREPARING" &&
-    new Date().getTime() - new Date(order.createdAt).getTime() > 15 * 60 * 1000; // 15 minutes
-
   return (
     <>
       <div className="space-y-4">
         {showPrintButton && (
           <div className="flex justify-end no-print">
-            <button
+            <Button
+              variant="primary"
+              size="sm"
+              leftIcon={<Printer className="h-4 w-4" />}
               onClick={handlePrint}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center space-x-2"
             >
-              <Printer className="w-4 h-4" />
-              <span>Print Kitchen Order</span>
-            </button>
+              Print kitchen order
+            </Button>
           </div>
         )}
 
         <div
           ref={printRef}
-          className={`print-receipt receipt bg-white p-6 border-2 max-w-sm mx-auto text-[11px] ${
-            isUrgent
-              ? "priority-high border-red-500"
-              : "priority-normal border-gray-300"
-          }`}
+          className="print-receipt receipt bg-white p-6 border-2 max-w-sm mx-auto text-[11px] priority-normal border-gray-300"
         >
-          {/* Header */}
           <div className="header text-center mb-6">
             <div className="mb-3">
               <img
@@ -75,11 +68,6 @@ export function KitchenReceipt({
               />
             </div>
             <div className="text-base font-semibold mb-2">KITCHEN ORDER</div>
-            {isUrgent && (
-              <div className="bg-red-500 text-white px-3 py-1 text-xs font-bold rounded">
-                URGENT - DELAYED ORDER
-              </div>
-            )}
           </div>
 
           {/* Order Details */}

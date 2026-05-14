@@ -216,9 +216,6 @@ async function main() {
         description:
           "Quarter grilled chicken - Lemon & Herbs / Honey Garlic / Peri-Peri",
         price: 5000,
-        cost: 2000,
-        stock: 25,
-        lowStockAlert: 5,
         categoryId: grilledChicken.id,
         featured: true,
         sortOrder: 1,
@@ -228,9 +225,6 @@ async function main() {
         description:
           "Half grilled chicken - Lemon & Herbs / Honey Garlic / Peri-Peri",
         price: 9000,
-        cost: 3500,
-        stock: 20,
-        lowStockAlert: 5,
         categoryId: grilledChicken.id,
         featured: true,
         sortOrder: 2,
@@ -240,9 +234,6 @@ async function main() {
         description:
           "Full grilled chicken - Lemon & Herbs / Honey Garlic / Peri-Peri",
         price: 16000,
-        cost: 6000,
-        stock: 15,
-        lowStockAlert: 3,
         categoryId: grilledChicken.id,
         featured: true,
         sortOrder: 3,
@@ -257,7 +248,6 @@ async function main() {
         name: "Shaya - 200g (Small)",
         description: "Best served with bread and peanut butter chili",
         price: 5000,
-        cost: 2000,
         categoryId: shaya.id,
         sortOrder: 1,
       },
@@ -265,7 +255,6 @@ async function main() {
         name: "Shaya - 500g (Medium)",
         description: "Best served with bread and peanut butter chili",
         price: 9000,
-        cost: 3500,
         categoryId: shaya.id,
         sortOrder: 2,
       },
@@ -273,7 +262,6 @@ async function main() {
         name: "Shaya - Full (Large)",
         description: "Best served with bread and peanut butter chili",
         price: 18000,
-        cost: 7000,
         categoryId: shaya.id,
         sortOrder: 3,
       },
@@ -287,7 +275,6 @@ async function main() {
         name: "Osso Buco - 1 Piece (Small)",
         description: "Tender braised beef shank",
         price: 5000,
-        cost: 2000,
         categoryId: ossoBuco.id,
         sortOrder: 1,
       },
@@ -295,7 +282,6 @@ async function main() {
         name: "Osso Buco - 2 Pieces (Medium)",
         description: "Tender braised beef shank",
         price: 9000,
-        cost: 3500,
         categoryId: ossoBuco.id,
         sortOrder: 2,
       },
@@ -303,7 +289,6 @@ async function main() {
         name: "Osso Buco - 4 Pieces (Large)",
         description: "Tender braised beef shank",
         price: 16000,
-        cost: 6000,
         categoryId: ossoBuco.id,
         sortOrder: 3,
       },
@@ -317,7 +302,6 @@ async function main() {
         name: "Skewers - 1 Skewer (Small)",
         description: "Tawook / Lamb Kofta / Beef Kebab",
         price: 3500,
-        cost: 1500,
         categoryId: skewers.id,
         sortOrder: 1,
       },
@@ -325,7 +309,6 @@ async function main() {
         name: "Skewers - 2 Skewers (Medium)",
         description: "Tawook / Lamb Kofta / Beef Kebab",
         price: 5000,
-        cost: 2000,
         categoryId: skewers.id,
         sortOrder: 2,
       },
@@ -333,7 +316,6 @@ async function main() {
         name: "Skewers - 4 Skewers (Large)",
         description: "Tawook / Lamb Kofta / Beef Kebab",
         price: 9000,
-        cost: 3500,
         categoryId: skewers.id,
         sortOrder: 3,
       },
@@ -347,7 +329,6 @@ async function main() {
         name: "Fried Tilapia - 1 Piece (Small)",
         description: "Crispy fried tilapia fillet",
         price: 5000,
-        cost: 2000,
         categoryId: friedTilapia.id,
         sortOrder: 1,
       },
@@ -355,7 +336,6 @@ async function main() {
         name: "Fried Tilapia - 2 Pieces (Medium)",
         description: "Crispy fried tilapia fillet",
         price: 9000,
-        cost: 3500,
         categoryId: friedTilapia.id,
         sortOrder: 2,
       },
@@ -363,7 +343,6 @@ async function main() {
         name: "Fried Tilapia - 4 Pieces (Large)",
         description: "Crispy fried tilapia fillet",
         price: 16000,
-        cost: 6000,
         categoryId: friedTilapia.id,
         sortOrder: 3,
       },
@@ -377,7 +356,6 @@ async function main() {
         name: "Lamb Mandi - Regular (Medium)",
         description: "Traditional spiced lamb with rice",
         price: 7000,
-        cost: 3000,
         categoryId: lambMandi.id,
         sortOrder: 1,
       },
@@ -385,7 +363,6 @@ async function main() {
         name: "Lamb Mandi - Full Power (Large)",
         description: "Large portion traditional spiced lamb with rice",
         price: 15000,
-        cost: 6000,
         categoryId: lambMandi.id,
         featured: true,
         sortOrder: 2,
@@ -400,7 +377,6 @@ async function main() {
         name: "Whole Tilapia - Regular (Medium)",
         description: "Whole grilled tilapia fish",
         price: 10000,
-        cost: 4000,
         categoryId: wholeTilapia.id,
         sortOrder: 1,
       },
@@ -408,7 +384,6 @@ async function main() {
         name: "Whole Tilapia - The Big Boss (Large)",
         description: "Large whole grilled tilapia fish",
         price: 16000,
-        cost: 6000,
         categoryId: wholeTilapia.id,
         featured: true,
         sortOrder: 2,
@@ -423,7 +398,6 @@ async function main() {
         name: "Beef Shank - Normal Cut (Medium)",
         description: "Tender smoked BBQ beef shank",
         price: 17000,
-        cost: 7000,
         categoryId: smokedBeef.id,
         sortOrder: 1,
       },
@@ -431,7 +405,6 @@ async function main() {
         name: "Beef Shank - The Prime Cut (Large)",
         description: "Premium cut tender smoked BBQ beef shank",
         price: 25000,
-        cost: 10000,
         categoryId: smokedBeef.id,
         featured: true,
         sortOrder: 2,
@@ -447,7 +420,6 @@ async function main() {
         description:
           "Meatballs in gravy or chicken curry - comes with rice & salad",
         price: 3000,
-        cost: 1200,
         categoryId: specials.id,
         featured: true,
         sortOrder: 1,
@@ -457,7 +429,6 @@ async function main() {
         description:
           "Whole lamb for family sharing (Pre-order 48 hours before)",
         price: 0, // Price on request
-        cost: 0,
         categoryId: specials.id,
         featured: true,
         sortOrder: 2,
@@ -467,7 +438,6 @@ async function main() {
         description:
           "Whole goat for family sharing (Pre-order 48 hours before)",
         price: 0, // Price on request
-        cost: 0,
         categoryId: specials.id,
         featured: true,
         sortOrder: 3,
@@ -482,7 +452,6 @@ async function main() {
         name: "Sheesh Tawook",
         description: "Grilled chicken wrap",
         price: 4000,
-        cost: 1500,
         categoryId: wraps.id,
         featured: true,
         sortOrder: 1,
@@ -491,7 +460,6 @@ async function main() {
         name: "Kofta Kebab",
         description: "Spiced ground meat wrap",
         price: 4000,
-        cost: 1500,
         categoryId: wraps.id,
         sortOrder: 2,
       },
@@ -499,7 +467,6 @@ async function main() {
         name: "Crispy Chicken",
         description: "Crispy fried chicken wrap",
         price: 4500,
-        cost: 1800,
         categoryId: wraps.id,
         sortOrder: 3,
       },
@@ -513,7 +480,6 @@ async function main() {
         name: "Cheese Burger",
         description: "Classic cheeseburger",
         price: 4000,
-        cost: 1500,
         categoryId: burgers.id,
         featured: true,
         sortOrder: 1,
@@ -522,7 +488,6 @@ async function main() {
         name: "Double Cheese Burger",
         description: "Double patty cheeseburger",
         price: 6000,
-        cost: 2500,
         categoryId: burgers.id,
         sortOrder: 2,
       },
@@ -530,7 +495,6 @@ async function main() {
         name: "Crispy Chicken Burger",
         description: "Crispy chicken burger",
         price: 4500,
-        cost: 1800,
         categoryId: burgers.id,
         sortOrder: 3,
       },
@@ -544,7 +508,6 @@ async function main() {
         name: "Rice",
         description: "Steamed white rice",
         price: 2000,
-        cost: 800,
         categoryId: carbs.id,
         sortOrder: 1,
       },
@@ -552,7 +515,6 @@ async function main() {
         name: "Mashed Potatoes",
         description: "Creamy mashed potatoes",
         price: 2500,
-        cost: 1000,
         categoryId: carbs.id,
         sortOrder: 2,
       },
@@ -560,7 +522,6 @@ async function main() {
         name: "Fries",
         description: "Golden crispy French fries",
         price: 2500,
-        cost: 1000,
         categoryId: carbs.id,
         sortOrder: 3,
       },
@@ -568,7 +529,6 @@ async function main() {
         name: "Roasted Veggies",
         description: "Mixed roasted vegetables",
         price: 3000,
-        cost: 1200,
         categoryId: carbs.id,
         sortOrder: 4,
       },
@@ -576,7 +536,6 @@ async function main() {
         name: "Bread",
         description: "Fresh baked bread",
         price: 1500,
-        cost: 600,
         categoryId: carbs.id,
         sortOrder: 5,
       },
@@ -590,7 +549,6 @@ async function main() {
         name: "Mediterranean",
         description: "Mediterranean style salad",
         price: 3500,
-        cost: 1400,
         categoryId: salads.id,
         sortOrder: 1,
       },
@@ -598,7 +556,6 @@ async function main() {
         name: "Sautéed Veggies",
         description: "Sautéed mixed vegetables",
         price: 3000,
-        cost: 1200,
         categoryId: salads.id,
         sortOrder: 2,
       },
@@ -606,7 +563,6 @@ async function main() {
         name: "Sumac Onion",
         description: "Sumac seasoned onion salad",
         price: 2000,
-        cost: 800,
         categoryId: salads.id,
         sortOrder: 3,
       },
@@ -614,7 +570,6 @@ async function main() {
         name: "Dakwa",
         description: "Traditional Dakwa salad",
         price: 2500,
-        cost: 1000,
         categoryId: salads.id,
         sortOrder: 4,
       },
@@ -628,7 +583,6 @@ async function main() {
         name: "Garlic Sauce",
         description: "Creamy garlic sauce",
         price: 1000,
-        cost: 400,
         categoryId: sauces.id,
         sortOrder: 1,
       },
@@ -636,7 +590,6 @@ async function main() {
         name: "Combo Sauce",
         description: "House special combo sauce",
         price: 1000,
-        cost: 400,
         categoryId: sauces.id,
         sortOrder: 2,
       },
@@ -644,7 +597,6 @@ async function main() {
         name: "Peanut-Butter Chili",
         description: "Spicy peanut butter chili sauce",
         price: 1500,
-        cost: 600,
         categoryId: sauces.id,
         featured: true,
         sortOrder: 3,
@@ -666,16 +618,15 @@ async function main() {
     });
 
     if (menuItems.length > 0) {
-      // Create orders with different statuses
       const sampleOrders = [
         {
-          status: "PENDING",
+          status: "COMPLETED",
           customerName: "John Doe",
           customerPhone: "+250788123456",
           items: [{ menuItem: menuItems[0], quantity: 2 }],
         },
         {
-          status: "PREPARING",
+          status: "COMPLETED",
           customerName: "Jane Smith",
           items: [
             { menuItem: menuItems[1], quantity: 1 },
@@ -683,13 +634,13 @@ async function main() {
           ],
         },
         {
-          status: "READY",
+          status: "COMPLETED",
           customerName: "Bob Johnson",
           customerPhone: "+250788987654",
           items: [{ menuItem: menuItems[3], quantity: 1 }],
         },
         {
-          status: "SERVED",
+          status: "COMPLETED",
           customerName: "Alice Brown",
           items: [
             { menuItem: menuItems[4], quantity: 2 },
@@ -715,6 +666,8 @@ async function main() {
 
         const subtotal = orderItems.reduce((sum, item) => sum + item.total, 0);
 
+        const isCancelled = orderData.status === "CANCELLED";
+
         await prisma.order.create({
           data: {
             orderNumber: `ORD${String(Date.now() + i).slice(-6)}`,
@@ -729,7 +682,7 @@ async function main() {
             discount: 0,
             total: subtotal,
             paymentMethod: "CASH",
-            paymentStatus: "COMPLETED",
+            paymentStatus: isCancelled ? "REFUNDED" : "COMPLETED",
             orderItems: {
               create: orderItems,
             },
@@ -737,14 +690,14 @@ async function main() {
               create: {
                 amount: subtotal,
                 method: "CASH",
-                status: "COMPLETED",
+                status: isCancelled ? "REFUNDED" : "COMPLETED",
               },
             },
           },
         });
       }
 
-      console.log("Sample orders created with all status types!");
+      console.log("Sample orders created!");
     }
   }
 

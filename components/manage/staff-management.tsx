@@ -1,26 +1,55 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Plus, Edit, Trash2, Save, X, UserCheck, UserX } from 'lucide-react'
+import { Plus, Edit, Trash2 } from 'lucide-react'
 import { User } from '@prisma/client'
-import toast from 'react-hot-toast'
+import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
+import { Modal } from '@/components/ui/modal'
+import { Table } from '@/components/ui/table'
+import { IconButton } from '@/components/ui/icon-button'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
-interface StaffManagementProps {}
+type Role = 'ADMIN' | 'MANAGER' | 'STAFF'
 
-export function StaffManagement({}: StaffManagementProps) {
+type FormState = {
+  name: string
+  phone: string
+  password: string
+  role: Role
+}
+
+const EMPTY: FormState = { name: '', phone: '', password: '', role: 'STAFF' }
+
+type Variant = 'neutral' | 'success' | 'warning' | 'danger' | 'info' | 'brand'
+
+function roleVariant(role: string): Variant {
+  switch (role) {
+    case 'ADMIN':
+      return 'brand'
+    case 'MANAGER':
+      return 'info'
+    case 'STAFF':
+      return 'success'
+    default:
+      return 'neutral'
+  }
+}
+
+export function StaffManagement() {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
-  const [editingUser, setEditingUser] = useState<string | null>(null)
-  const [showAddForm, setShowAddForm] = useState(false)
-  const [editForm, setEditForm] = useState({
-    name: '',
-    phone: '',
-    password: '',
-    role: 'STAFF' as 'ADMIN' | 'MANAGER' | 'STAFF'
-  })
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState<FormState>(EMPTY)
+  const [submitting, setSubmitting] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<User | null>(null)
 
   useEffect(() => {
-    fetchUsers()
+    fetchUsers().finally(() => setLoading(false))
   }, [])
 
   const fetchUsers = async () => {
@@ -29,320 +58,219 @@ export function StaffManagement({}: StaffManagementProps) {
       if (!response.ok) throw new Error('Failed to fetch users')
       const data = await response.json()
       setUsers(data)
-    } catch (error) {
+    } catch {
       toast.error('Failed to load staff members')
-    } finally {
-      setLoading(false)
     }
   }
 
-  const handleEdit = (user: User) => {
-    setEditingUser(user.id)
-    setEditForm({
+  const openAdd = () => {
+    setEditingId(null)
+    setForm(EMPTY)
+    setShowForm(true)
+  }
+
+  const openEdit = (user: User) => {
+    setEditingId(user.id)
+    setForm({
       name: user.name || '',
       phone: user.phone || '',
       password: '',
-      role: user.role as 'ADMIN' | 'MANAGER' | 'STAFF'
+      role: user.role as Role,
     })
+    setShowForm(true)
   }
 
-  const handleSave = async (userId: string) => {
-    try {
-      const updateData: any = {
-        name: editForm.name,
-        phone: editForm.phone,
-        role: editForm.role
-      }
-
-      // Only include password if it's provided
-      if (editForm.password) {
-        updateData.password = editForm.password
-      }
-
-      const response = await fetch(`/api/users/${userId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updateData)
-      })
-
-      if (!response.ok) throw new Error('Failed to update user')
-
-      await fetchUsers()
-      setEditingUser(null)
-      toast.success('Staff member updated successfully')
-    } catch (error) {
-      toast.error('Failed to update staff member')
-    }
+  const closeForm = () => {
+    setShowForm(false)
+    setEditingId(null)
+    setForm(EMPTY)
   }
 
-  const handleAdd = async () => {
-    if (!editForm.password) {
-      toast.error('Password is required for new staff members')
+  const handleSubmit = async () => {
+    if (!form.name.trim() || !form.phone.trim()) {
+      toast.error('Name and phone are required')
       return
     }
-
+    if (!editingId && !form.password) {
+      toast.error('Password is required for new staff')
+      return
+    }
+    setSubmitting(true)
     try {
-      const response = await fetch('/api/users', {
-        method: 'POST',
+      const payload: any = { name: form.name, phone: form.phone, role: form.role }
+      if (form.password) payload.password = form.password
+
+      const response = await fetch(editingId ? `/api/users/${editingId}` : '/api/users', {
+        method: editingId ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editForm)
+        body: JSON.stringify(editingId ? payload : form),
       })
-
-      if (!response.ok) throw new Error('Failed to create user')
-
+      if (!response.ok) throw new Error('Failed to save staff member')
       await fetchUsers()
-      setShowAddForm(false)
-      setEditForm({
-        name: '',
-        phone: '',
-        password: '',
-        role: 'STAFF'
-      })
-      toast.success('Staff member created successfully')
-    } catch (error) {
-      toast.error('Failed to create staff member')
+      toast.success(editingId ? 'Staff updated' : 'Staff created')
+      setSubmitting(false)
+      closeForm()
+    } catch {
+      setSubmitting(false)
+      toast.error('Failed to save staff member')
     }
   }
 
-  const handleDelete = async (userId: string) => {
-    if (!confirm('Are you sure you want to delete this staff member?')) return
-
+  const performDelete = async () => {
+    if (!deleteTarget) return
     try {
-      const response = await fetch(`/api/users/${userId}`, {
-        method: 'DELETE'
-      })
-
+      const response = await fetch(`/api/users/${deleteTarget.id}`, { method: 'DELETE' })
       if (!response.ok) throw new Error('Failed to delete user')
-
       await fetchUsers()
-      toast.success('Staff member deleted successfully')
-    } catch (error) {
+      toast.success('Staff member deleted')
+    } catch {
       toast.error('Failed to delete staff member')
     }
   }
 
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'ADMIN':
-        return 'bg-purple-100 text-purple-800'
-      case 'MANAGER':
-        return 'bg-blue-100 text-blue-800'
-      case 'STAFF':
-        return 'bg-green-100 text-green-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="p-6 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-      </div>
-    )
-  }
-
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
+      <div className="mb-6 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
         <div>
-          <h3 className="text-lg font-medium text-gray-900">Staff Management</h3>
-          <p className="text-sm text-gray-600">Manage your restaurant's staff members and their roles</p>
+          <h3 className="text-base font-semibold text-gray-900">Staff Management</h3>
+          <p className="text-sm text-muted">Manage employees and their roles</p>
         </div>
-        <button
-          onClick={() => setShowAddForm(true)}
-          className="btn btn-primary px-4 py-2"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Add Staff Member
-        </button>
+        <Button variant="primary" leftIcon={<Plus className="h-4 w-4" />} onClick={openAdd}>
+          Add staff member
+        </Button>
       </div>
 
-      {/* Add Form */}
-      {showAddForm && (
-        <div className="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
-          <h4 className="font-medium text-gray-900 mb-4">Add New Staff Member</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <input
+      <Table>
+        <Table.Header>
+          <tr>
+            <Table.HeaderCell>Staff Member</Table.HeaderCell>
+            <Table.HeaderCell>Phone</Table.HeaderCell>
+            <Table.HeaderCell>Role</Table.HeaderCell>
+            <Table.HeaderCell>Joined</Table.HeaderCell>
+            <Table.HeaderCell align="right">Actions</Table.HeaderCell>
+          </tr>
+        </Table.Header>
+        <Table.Body>
+          {loading ? (
+            <Table.Empty colSpan={5}>Loading…</Table.Empty>
+          ) : users.length === 0 ? (
+            <Table.Empty colSpan={5}>No staff members yet.</Table.Empty>
+          ) : (
+            users.map((user) => (
+              <Table.Row key={user.id}>
+                <Table.Cell>
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary-500 text-sm font-semibold text-white">
+                      {user.name?.charAt(0).toUpperCase() || 'U'}
+                    </div>
+                    <div className="font-medium">{user.name}</div>
+                  </div>
+                </Table.Cell>
+                <Table.Cell>{user.phone}</Table.Cell>
+                <Table.Cell>
+                  <Badge variant={roleVariant(user.role)} size="sm">
+                    {user.role}
+                  </Badge>
+                </Table.Cell>
+                <Table.Cell className="text-muted">
+                  {new Date(user.createdAt).toLocaleDateString()}
+                </Table.Cell>
+                <Table.Cell align="right">
+                  <div className="flex justify-end gap-1">
+                    <IconButton aria-label="Edit" onClick={() => openEdit(user)}>
+                      <Edit className="h-4 w-4" />
+                    </IconButton>
+                    {user.role !== 'ADMIN' && (
+                      <IconButton aria-label="Delete" variant="danger" onClick={() => setDeleteTarget(user)}>
+                        <Trash2 className="h-4 w-4" />
+                      </IconButton>
+                    )}
+                  </div>
+                </Table.Cell>
+              </Table.Row>
+            ))
+          )}
+        </Table.Body>
+      </Table>
+
+      <Modal
+        open={showForm}
+        onClose={closeForm}
+        title={editingId ? 'Edit staff member' : 'Add staff member'}
+        width="md"
+        footer={
+          <>
+            <Button variant="outline" disabled={submitting} onClick={closeForm}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              loading={submitting}
+              disabled={submitting}
+              onClick={handleSubmit}
+            >
+              {submitting ? 'Saving…' : editingId ? 'Save changes' : 'Create staff'}
+            </Button>
+          </>
+        }
+      >
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="space-y-1">
+            <label className="text-xs font-semibold uppercase tracking-wide text-muted">Full name</label>
+            <Input
               type="text"
               placeholder="Full name"
-              value={editForm.name}
-              onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-              className="input"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
             />
-            <input
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-semibold uppercase tracking-wide text-muted">Phone</label>
+            <Input
               type="tel"
-              placeholder="Phone number"
-              value={editForm.phone}
-              onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-              className="input"
+              placeholder="07XXXXXXXX"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
             />
-            <input
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+              {editingId ? 'New password (optional)' : 'Password'}
+            </label>
+            <Input
               type="password"
-              placeholder="Password"
-              value={editForm.password}
-              onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
-              className="input"
+              placeholder={editingId ? 'Leave blank to keep current' : 'Password'}
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
             />
-            <select
-              value={editForm.role}
-              onChange={(e) => setEditForm({ ...editForm, role: e.target.value as 'ADMIN' | 'MANAGER' | 'STAFF' })}
-              className="input"
-            >
-              <option value="STAFF">Staff</option>
-              <option value="MANAGER">Manager</option>
-              <option value="ADMIN">Admin</option>
-            </select>
           </div>
-          <div className="flex space-x-2 mt-4">
-            <button onClick={handleAdd} className="btn btn-primary btn-sm">
-              <Save className="w-4 h-4 mr-1" />
-              Save
-            </button>
-            <button
-              onClick={() => setShowAddForm(false)}
-              className="btn btn-outline btn-sm"
-            >
-              <X className="w-4 h-4 mr-1" />
-              Cancel
-            </button>
+          <div className="space-y-1">
+            <label className="text-xs font-semibold uppercase tracking-wide text-muted">Role</label>
+            <Select<Role>
+              value={form.role}
+              onChange={(v) => setForm({ ...form, role: v })}
+              options={[
+                { value: 'STAFF', label: 'Staff' },
+                { value: 'MANAGER', label: 'Manager' },
+                { value: 'ADMIN', label: 'Admin' },
+              ]}
+            />
           </div>
         </div>
-      )}
+      </Modal>
 
-      {/* Staff Table */}
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Staff Member
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Phone
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Role
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Joined
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {users.map((user) => (
-              <tr key={user.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0 h-10 w-10">
-                      <div className="h-10 w-10 rounded-full bg-primary-500 flex items-center justify-center">
-                        <span className="text-sm font-medium text-white">
-                          {user.name?.charAt(0).toUpperCase() || 'U'}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="ml-4">
-                      {editingUser === user.id ? (
-                        <input
-                          type="text"
-                          value={editForm.name}
-                          onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                          className="input text-sm"
-                        />
-                      ) : (
-                        <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                      )}
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {editingUser === user.id ? (
-                    <input
-                      type="tel"
-                      value={editForm.phone}
-                      onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                      className="input text-sm"
-                    />
-                  ) : (
-                    <div className="text-sm text-gray-900">{user.phone}</div>
-                  )}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {editingUser === user.id ? (
-                    <select
-                      value={editForm.role}
-                      onChange={(e) => setEditForm({ ...editForm, role: e.target.value as 'ADMIN' | 'MANAGER' | 'STAFF' })}
-                      className="input text-sm"
-                    >
-                      <option value="STAFF">Staff</option>
-                      <option value="MANAGER">Manager</option>
-                      <option value="ADMIN">Admin</option>
-                    </select>
-                  ) : (
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getRoleColor(user.role)}`}>
-                      {user.role}
-                    </span>
-                  )}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                  {new Date(user.createdAt).toLocaleDateString()}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  {editingUser === user.id ? (
-                    <div className="flex space-x-1">
-                      <input
-                        type="password"
-                        placeholder="New password (optional)"
-                        value={editForm.password}
-                        onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
-                        className="input text-sm w-32"
-                      />
-                      <button
-                        onClick={() => handleSave(user.id)}
-                        className="btn btn-primary btn-sm"
-                      >
-                        <Save className="w-3 h-3" />
-                      </button>
-                      <button
-                        onClick={() => setEditingUser(null)}
-                        className="btn btn-outline btn-sm"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex space-x-1">
-                      <button
-                        onClick={() => handleEdit(user)}
-                        className="btn btn-outline btn-sm"
-                      >
-                        <Edit className="w-3 h-3" />
-                      </button>
-                      {user.role !== 'ADMIN' && (
-                        <button
-                          onClick={() => handleDelete(user.id)}
-                          className="btn btn-outline btn-sm text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {users.length === 0 && (
-        <div className="text-center py-8">
-          <p className="text-gray-500">No staff members found.</p>
-        </div>
-      )}
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={performDelete}
+        title="Delete staff member?"
+        description={
+          deleteTarget
+            ? `${deleteTarget.name} will lose access immediately. This cannot be undone.`
+            : null
+        }
+        confirmLabel="Delete staff"
+      />
     </div>
   )
 }

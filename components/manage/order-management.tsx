@@ -3,10 +3,45 @@
 import { useState, useEffect } from 'react'
 import { OrderWithItems } from '@/types'
 import { formatPrice, formatDate } from '@/lib/utils'
-import { Clock, User, Search, Filter, RefreshCw, Printer, Receipt } from 'lucide-react'
+import { Clock, User, Search, RefreshCw, Printer, Receipt, MoreHorizontal } from 'lucide-react'
 import { CustomerReceipt } from '@/components/receipts/customer-receipt'
 import { KitchenReceipt } from '@/components/receipts/kitchen-receipt'
-import toast from 'react-hot-toast'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Pills } from '@/components/ui/pills'
+import { DropdownMenu } from '@/components/ui/dropdown-menu'
+import { IconButton } from '@/components/ui/icon-button'
+import { Modal } from '@/components/ui/modal'
+import { toast } from 'sonner'
+
+type Variant = 'neutral' | 'success' | 'warning' | 'danger' | 'info' | 'brand'
+
+function statusVariant(status: string): Variant {
+  switch (status) {
+    case 'COMPLETED':
+      return 'success'
+    case 'CANCELLED':
+      return 'danger'
+    default:
+      return 'neutral'
+  }
+}
+
+function paymentVariant(status: string): Variant {
+  switch (status) {
+    case 'COMPLETED':
+      return 'success'
+    case 'REFUNDED':
+      return 'danger'
+    default:
+      return 'warning'
+  }
+}
+
+function getNextStatuses(currentStatus: string): string[] {
+  return currentStatus === 'COMPLETED' ? ['CANCELLED'] : []
+}
 
 export function OrderManagement() {
   const [orders, setOrders] = useState<OrderWithItems[]>([])
@@ -22,6 +57,7 @@ export function OrderManagement() {
   }, [])
 
   const fetchOrders = async () => {
+    setLoading(true)
     try {
       const response = await fetch('/api/orders')
       if (!response.ok) throw new Error('Failed to fetch orders')
@@ -40,12 +76,12 @@ export function OrderManagement() {
       const response = await fetch(`/api/orders/${orderId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
+        body: JSON.stringify({ status: newStatus }),
       })
 
       if (!response.ok) throw new Error('Failed to update order status')
 
-      toast.success(`Order status updated to ${newStatus.toLowerCase()}`)
+      toast.success(newStatus === 'CANCELLED' ? 'Order cancelled' : `Order moved to ${newStatus.toLowerCase()}`)
       await fetchOrders()
     } catch (error) {
       toast.error('Failed to update order status')
@@ -54,41 +90,7 @@ export function OrderManagement() {
     }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'PENDING':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200'
-      case 'PREPARING':
-        return 'bg-blue-100 text-blue-800 border-blue-200'
-      case 'READY':
-        return 'bg-green-100 text-green-800 border-green-200'
-      case 'SERVED':
-        return 'bg-gray-100 text-gray-800 border-gray-200'
-      case 'CANCELLED':
-        return 'bg-red-100 text-red-800 border-red-200'
-      default:
-        return 'bg-gray-100 text-gray-800 border-gray-200'
-    }
-  }
-
-  const getNextStatuses = (currentStatus: string) => {
-    switch (currentStatus) {
-      case 'PENDING':
-        return ['PREPARING', 'CANCELLED']
-      case 'PREPARING':
-        return ['READY', 'CANCELLED']
-      case 'READY':
-        return ['SERVED']
-      case 'SERVED':
-        return []
-      case 'CANCELLED':
-        return []
-      default:
-        return []
-    }
-  }
-
-  const filteredOrders = orders.filter(order => {
+  const filteredOrders = orders.filter((order) => {
     const matchesSearch =
       order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
       order.customerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -107,248 +109,205 @@ export function OrderManagement() {
   const handlePrintComplete = () => {
     setPrintingOrder(null)
     setPrintType(null)
-    toast.success('Receipt printed successfully')
-  }
-
-  if (loading) {
-    return (
-      <div className="p-6 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-      </div>
-    )
   }
 
   return (
-    <div className="p-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 space-y-4 sm:space-y-0">
-        <div>
-          <h3 className="text-lg font-medium text-gray-900">Order Management</h3>
-          <p className="text-sm text-gray-600">Track and update order statuses</p>
-        </div>
-        <button
+    <div className="space-y-4 p-6">
+      <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+        <Pills
+          value={statusFilter}
+          onChange={setStatusFilter}
+          options={[
+            { value: 'ALL', label: 'All' },
+            { value: 'COMPLETED', label: 'Completed' },
+            { value: 'CANCELLED', label: 'Cancelled' },
+          ]}
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          leftIcon={<RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />}
           onClick={fetchOrders}
-          className="btn btn-outline px-4 py-2"
           disabled={loading}
         >
-          <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
           Refresh
-        </button>
+        </Button>
       </div>
 
-      {/* Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <input
-            type="text"
-            placeholder="Search by order number, customer name, or phone..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="input pl-10"
-          />
-        </div>
-        <div className="relative">
-          <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="input pl-10"
-          >
-            <option value="ALL">All Statuses</option>
-            <option value="PENDING">Pending</option>
-            <option value="PREPARING">Preparing</option>
-            <option value="READY">Ready</option>
-            <option value="SERVED">Served</option>
-            <option value="CANCELLED">Cancelled</option>
-          </select>
-        </div>
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+        <Input
+          type="text"
+          placeholder="Search by order number, customer name, or phone..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10"
+        />
       </div>
 
-      {/* Orders Grid */}
-      <div className="space-y-4">
-        {filteredOrders.length === 0 ? (
-          <div className="text-center py-12">
-            <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No orders found</h3>
-            <p className="text-gray-600">
+      <div className="space-y-3">
+        {loading ? (
+          <div className="rounded-xl border border-card-border bg-white py-12 text-center text-sm text-muted">
+            Loading orders…
+          </div>
+        ) : filteredOrders.length === 0 ? (
+          <div className="rounded-xl border border-card-border bg-white py-12 text-center">
+            <Clock className="mx-auto mb-3 h-8 w-8 text-muted" />
+            <h3 className="text-base font-semibold text-gray-900">No orders found</h3>
+            <p className="mt-1 text-sm text-muted">
               {searchQuery || statusFilter !== 'ALL'
-                ? 'Try adjusting your search or filter criteria'
-                : 'Orders will appear here once customers place them'
-              }
+                ? 'Try adjusting your search or filter'
+                : 'Orders will appear here once customers place them'}
             </p>
           </div>
         ) : (
-          filteredOrders.map((order) => (
-            <div
-              key={order.id}
-              className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
-            >
-              {/* Order Header */}
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
-                <div className="flex items-center space-x-3 mb-2 sm:mb-0">
-                  <h4 className="text-lg font-semibold text-gray-900">
-                    #{order.orderNumber}
-                  </h4>
-                  <div className="relative">
-                    {getNextStatuses(order.status).length > 0 && updatingOrder !== order.id ? (
-                      <select
-                        value={order.status}
-                        onChange={(e) => updateOrderStatus(order.id, e.target.value)}
-                        className={`px-3 py-1 rounded-full text-sm font-medium border cursor-pointer bg-white hover:shadow-md ${getStatusColor(
-                          order.status
-                        )}`}
-                        style={{ minWidth: '120px' }}
-                      >
-                        <option value={order.status} className="bg-white text-black">
-                          {order.status}
-                        </option>
-                        {getNextStatuses(order.status).map((status) => (
-                          <option key={status} value={status} className="bg-white text-black">
-                            {status}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <span
-                        className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(
-                          order.status
-                        )}`}
-                      >
-                        {updatingOrder === order.id ? 'Updating...' : order.status}
-                      </span>
-                    )}
+          filteredOrders.map((order) => {
+            const nextStatuses = getNextStatuses(order.status)
+            return (
+              <div
+                key={order.id}
+                className="rounded-xl border border-card-border bg-white p-5 transition-shadow hover:shadow-sm"
+              >
+                <div className="mb-3 flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center">
+                  <div className="flex items-center gap-3">
+                    <h4 className="text-base font-semibold text-gray-900">#{order.orderNumber}</h4>
+                    <Badge variant={statusVariant(order.status)} size="sm">
+                      {updatingOrder === order.id ? 'Updating…' : order.status}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <div className="text-lg font-bold text-gray-900 tabular-nums">
+                        {formatPrice(Number(order.total))}
+                      </div>
+                      <div className="text-xs text-muted">
+                        {formatDate(new Date(order.createdAt))}
+                      </div>
+                    </div>
+                    {nextStatuses.length > 0 ? (
+                      <DropdownMenu>
+                        <DropdownMenu.Trigger
+                          aria-label="Order actions"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-surface hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </DropdownMenu.Trigger>
+                        <DropdownMenu.Content align="end" width="11rem">
+                          <DropdownMenu.Label>Actions</DropdownMenu.Label>
+                          {nextStatuses.map((s) => (
+                            <DropdownMenu.Item
+                              key={s}
+                              variant={s === 'CANCELLED' ? 'danger' : 'primary'}
+                              onSelect={() => updateOrderStatus(order.id, s)}
+                            >
+                              {s === 'CANCELLED' ? 'Cancel order' : `Move to ${s.toLowerCase()}`}
+                            </DropdownMenu.Item>
+                          ))}
+                        </DropdownMenu.Content>
+                      </DropdownMenu>
+                    ) : null}
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-xl font-bold text-gray-900">
-                    {formatPrice(Number(order.total))}
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    {formatDate(new Date(order.createdAt))}
-                  </div>
-                </div>
-              </div>
 
-              {/* Customer Info */}
-              {(order.customerName || order.customerPhone) && (
-                <div className="flex items-center text-sm text-gray-600 mb-4">
-                  <User className="w-4 h-4 mr-2" />
-                  <span>
-                    {order.customerName && order.customerPhone
-                      ? `${order.customerName} • ${order.customerPhone}`
-                      : order.customerName || order.customerPhone
-                    }
-                  </span>
-                </div>
-              )}
+                {(order.customerName || order.customerPhone) && (
+                  <div className="mb-3 flex items-center gap-2 text-sm text-muted">
+                    <User className="h-4 w-4" />
+                    <span>
+                      {order.customerName && order.customerPhone
+                        ? `${order.customerName} • ${order.customerPhone}`
+                        : order.customerName || order.customerPhone}
+                    </span>
+                  </div>
+                )}
 
-              {/* Order Items */}
-              <div className="space-y-2 mb-4">
-                <h5 className="font-medium text-gray-900">Items:</h5>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {order.orderItems.map((item) => (
                     <div
                       key={item.id}
-                      className="flex justify-between items-center p-3 bg-gray-50 rounded-md"
+                      className="flex items-center justify-between rounded-md bg-surface p-2.5"
                     >
-                      <div className="flex-1">
-                        <span className="text-sm font-medium">{item.menuItem.name}</span>
+                      <div className="min-w-0 flex-1">
+                        <span className="text-sm font-medium text-gray-900">
+                          {item.menuItem.name}
+                        </span>
                         {item.notes && (
-                          <p className="text-xs text-gray-600 italic">Note: {item.notes}</p>
+                          <p className="mt-0.5 text-xs italic text-muted">Note: {item.notes}</p>
                         )}
                       </div>
                       <div className="text-right">
-                        <div className="text-sm font-medium">×{item.quantity}</div>
-                        <div className="text-xs text-gray-600">
+                        <div className="text-sm font-semibold tabular-nums">×{item.quantity}</div>
+                        <div className="text-xs text-muted tabular-nums">
                           {formatPrice(Number(item.total))}
                         </div>
                       </div>
                     </div>
                   ))}
                 </div>
-              </div>
 
-              {/* Order Notes */}
-              {order.notes && (
-                <div className="mt-4 p-3 bg-yellow-50 rounded-md">
-                  <h5 className="font-medium text-gray-900 mb-1">Order Notes:</h5>
-                  <p className="text-sm text-gray-700">{order.notes}</p>
+                {order.notes && (
+                  <div className="mb-3 rounded-md border border-amber-100 bg-amber-50 p-3">
+                    <h5 className="mb-1 text-xs font-semibold uppercase tracking-wide text-amber-700">
+                      Notes
+                    </h5>
+                    <p className="text-sm text-gray-700">{order.notes}</p>
+                  </div>
+                )}
+
+                <div className="mb-3 flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    leftIcon={<Receipt className="h-4 w-4" />}
+                    onClick={() => handlePrintReceipt(order, 'customer')}
+                  >
+                    Customer receipt
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    leftIcon={<Printer className="h-4 w-4" />}
+                    onClick={() => handlePrintReceipt(order, 'kitchen')}
+                  >
+                    Kitchen order
+                  </Button>
                 </div>
-              )}
 
-              {/* Print Actions */}
-              <div className="flex gap-2 mb-4">
-                <button
-                  onClick={() => handlePrintReceipt(order, 'customer')}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white px-3 py-2 rounded-md text-sm font-medium flex items-center justify-center space-x-2 transition-colors"
-                >
-                  <Receipt className="w-4 h-4" />
-                  <span>Customer Receipt</span>
-                </button>
-                <button
-                  onClick={() => handlePrintReceipt(order, 'kitchen')}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-md text-sm font-medium flex items-center justify-center space-x-2 transition-colors"
-                >
-                  <Printer className="w-4 h-4" />
-                  <span>Kitchen Order</span>
-                </button>
-              </div>
-
-              {/* Payment Info */}
-              <div className="flex justify-between items-center pt-4 border-t border-gray-100">
-                <div className="flex items-center space-x-3">
-                  <span className="text-sm text-gray-600">
-                    Payment: <span className="font-medium capitalize">{order.paymentMethod.toLowerCase()}</span>
-                  </span>
-                  <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
-                    order.paymentStatus === 'COMPLETED'
-                      ? 'bg-green-100 text-green-700'
-                      : order.paymentStatus === 'REFUNDED'
-                        ? 'bg-red-100 text-red-700'
-                        : 'bg-yellow-100 text-yellow-700'
-                  }`}>
-                    {order.paymentStatus === 'COMPLETED' ? 'Paid' :
-                     order.paymentStatus === 'REFUNDED' ? 'Refunded' : 'Unpaid'}
+                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-card-border pt-3 text-xs text-muted">
+                  <div className="flex items-center gap-2">
+                    <span>
+                      Payment <span className="font-medium capitalize text-gray-900">{order.paymentMethod.toLowerCase()}</span>
+                    </span>
+                    <Badge variant={paymentVariant(order.paymentStatus)} size="sm">
+                      {order.paymentStatus === 'COMPLETED'
+                        ? 'Paid'
+                        : order.paymentStatus === 'REFUNDED'
+                          ? 'Refunded'
+                          : 'Unpaid'}
+                    </Badge>
+                  </div>
+                  <span>
+                    Staff <span className="font-medium text-gray-900">{order.user.name}</span>
                   </span>
                 </div>
-                <span className="text-sm text-gray-600">
-                  Staff: <span className="font-medium">{order.user.name}</span>
-                </span>
               </div>
-            </div>
-          ))
+            )
+          })
         )}
       </div>
 
-      {/* Print Modal */}
-      {printingOrder && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-auto">
-            {printType === 'customer' && (
-              <CustomerReceipt
-                order={printingOrder}
-                onPrint={handlePrintComplete}
-                showPrintButton={true}
-              />
-            )}
-            {printType === 'kitchen' && (
-              <KitchenReceipt
-                order={printingOrder}
-                onPrint={handlePrintComplete}
-                showPrintButton={true}
-              />
-            )}
-            <div className="p-4 border-t bg-gray-50 no-print">
-              <button
-                onClick={handlePrintComplete}
-                className="w-full bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        open={!!printingOrder}
+        onClose={handlePrintComplete}
+        title={printType === 'kitchen' ? 'Kitchen Order' : 'Customer Receipt'}
+        width="md"
+      >
+        {printingOrder && printType === 'customer' && (
+          <CustomerReceipt order={printingOrder} onPrint={handlePrintComplete} showPrintButton={true} />
+        )}
+        {printingOrder && printType === 'kitchen' && (
+          <KitchenReceipt order={printingOrder} onPrint={handlePrintComplete} showPrintButton={true} />
+        )}
+      </Modal>
     </div>
   )
 }

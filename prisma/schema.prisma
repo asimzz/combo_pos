@@ -44,37 +44,21 @@ model Category {
   @@map("categories")
 }
 
-model StockGroup {
-  id    String @id @default(cuid())
-  name  String @unique
-  stock Int    @default(0)
-  lowStockAlert Int @default(10)
-  items MenuItem[]
-
-  @@map("stock_groups")
-}
-
 model MenuItem {
   id             String  @id @default(cuid())
   name           String
   description    String?
   price          Float
-  cost           Float?
   active         Boolean @default(true)
   featured       Boolean @default(false)
   sortOrder      Int     @default(0)
   image          String?
-  stock          Int?
-  lowStockAlert  Int     @default(10)
   qrCode         String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id])
-
-  stockGroupId String?
-  stockGroup   StockGroup? @relation(fields: [stockGroupId], references: [id])
 
   orderItems OrderItem[]
   rawMaterialUsage RawMaterialUsage[]
@@ -85,7 +69,7 @@ model MenuItem {
 model Order {
   id             String      @id @default(cuid())
   orderNumber    String      @unique
-  status         OrderStatus @default(PENDING)
+  status         OrderStatus @default(COMPLETED)
   customerName   String?
   customerPhone  String?
   notes          String?
@@ -361,10 +345,7 @@ enum UserRole {
 }
 
 enum OrderStatus {
-  PENDING
-  PREPARING
-  READY
-  SERVED
+  COMPLETED
   CANCELLED
 }
 

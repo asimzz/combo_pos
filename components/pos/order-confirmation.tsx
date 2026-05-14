@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { OrderWithItems } from "@/types";
 import { formatPrice, formatDate } from "@/lib/utils";
-import { Check, Printer, RotateCcw, Receipt, ChefHat } from "lucide-react";
+import { Check, RotateCcw, Receipt, ChefHat, ArrowLeft } from "lucide-react";
 import { CustomerReceipt } from "@/components/receipts/customer-receipt";
 import { KitchenReceipt } from "@/components/receipts/kitchen-receipt";
+import { Button } from "@/components/ui/button";
 
 interface OrderConfirmationProps {
   order: OrderWithItems;
@@ -19,22 +20,20 @@ export function OrderConfirmation({
   const [showCustomerReceipt, setShowCustomerReceipt] = useState(false);
   const [showKitchenReceipt, setShowKitchenReceipt] = useState(false);
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   if (showCustomerReceipt) {
     return (
-      <div className="min-h-screen bg-gray-50 p-4">
-        <div className="max-w-2xl mx-auto">
-          <div className="mb-4 flex justify-between items-center">
-            <h2 className="text-xl font-bold">Customer Receipt</h2>
-            <button
+      <div className="min-h-screen bg-surface p-4">
+        <div className="mx-auto max-w-2xl">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-gray-900">Customer Receipt</h2>
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<ArrowLeft className="h-4 w-4" />}
               onClick={() => setShowCustomerReceipt(false)}
-              className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
             >
               Back
-            </button>
+            </Button>
           </div>
           <CustomerReceipt order={order} />
         </div>
@@ -44,16 +43,18 @@ export function OrderConfirmation({
 
   if (showKitchenReceipt) {
     return (
-      <div className="min-h-screen bg-gray-50 p-4">
-        <div className="max-w-2xl mx-auto">
-          <div className="mb-4 flex justify-between items-center">
-            <h2 className="text-xl font-bold">Kitchen Order</h2>
-            <button
+      <div className="min-h-screen bg-surface p-4">
+        <div className="mx-auto max-w-2xl">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-gray-900">Kitchen Order</h2>
+            <Button
+              variant="outline"
+              size="sm"
+              leftIcon={<ArrowLeft className="h-4 w-4" />}
               onClick={() => setShowKitchenReceipt(false)}
-              className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
             >
               Back
-            </button>
+            </Button>
           </div>
           <KitchenReceipt order={order} />
         </div>
@@ -62,15 +63,15 @@ export function OrderConfirmation({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="max-w-xs w-full bg-white rounded-lg shadow-lg overflow-hidden receipt-container">
+    <div className="min-h-screen bg-surface flex items-center justify-center p-4">
+      <div className="receipt-container w-full max-w-xs overflow-hidden rounded-xl border border-card-border bg-white shadow-lg">
         {/* Success Header */}
-        <div className="bg-success text-white p-4 text-center">
-          <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-2">
-            <Check className="w-6 h-6" />
+        <div className="bg-green-500 p-4 text-center text-white">
+          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-white/20">
+            <Check className="h-6 w-6" />
           </div>
-          <h1 className="text-lg font-bold">Order Confirmed!</h1>
-          <p className="text-sm opacity-90">Order #{order.orderNumber}</p>
+          <h1 className="text-base font-semibold">Order Confirmed</h1>
+          <p className="text-xs opacity-90">Order #{order.orderNumber}</p>
         </div>
 
         {/* Receipt */}
@@ -162,28 +163,34 @@ export function OrderConfirmation({
         </div>
 
         {/* Actions */}
-        <div className="p-4 bg-gray-50 space-y-2">
-          <button
+        <div className="space-y-2 border-t border-card-border bg-surface p-4 no-print">
+          <Button
+            variant="outline"
+            size="md"
+            className="w-full"
+            leftIcon={<ChefHat className="h-4 w-4" />}
             onClick={() => setShowKitchenReceipt(true)}
-            className="btn btn-outline btn-md w-full text-sm"
           >
-            <ChefHat className="w-4 h-4 mr-2" />
             Kitchen Order
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="outline"
+            size="md"
+            className="w-full"
+            leftIcon={<Receipt className="h-4 w-4" />}
             onClick={() => setShowCustomerReceipt(true)}
-            className="btn btn-outline btn-md w-full text-sm"
           >
-            <Receipt className="w-4 h-4 mr-2" />
             Customer Receipt
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="primary"
+            size="md"
+            className="w-full"
+            leftIcon={<RotateCcw className="h-4 w-4" />}
             onClick={onNewOrder}
-            className="btn btn-primary btn-md w-full text-sm"
           >
-            <RotateCcw className="w-4 h-4 mr-2" />
             New Order
-          </button>
+          </Button>
         </div>
       </div>
 
