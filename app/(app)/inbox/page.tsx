@@ -27,9 +27,7 @@ export default function InboxPage() {
           </p>
         </div>
 
-        <div className="rounded-xl border border-card-border bg-white">
-          <InboxView />
-        </div>
+        <InboxView />
       </div>
     </div>
   )

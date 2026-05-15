@@ -1,349 +1,288 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { MessageCircle, Send } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Spinner } from '@/components/ui/spinner'
-import { cn } from '@/lib/utils'
+import { useCallback, useEffect, useReducer, useRef } from 'react'
+import {
+  type InboxEvent,
+  type Mode,
+  type WireMessage,
+  useInboxEvents,
+} from '@/lib/hooks/use-inbox-events'
+import { ThreadList } from './thread-list'
+import { ThreadPane } from './thread-pane'
+import type { Message, Thread, ThreadState } from './types'
 
-type Role = 'customer' | 'agent' | 'staff' | 'tool'
-type Mode = 'auto' | 'manual'
-
-type Thread = {
-  customer_id: string
-  last_message_preview: string
-  last_message_at: string | null
-  last_message_role: Role | null
-  mode: Mode
-  unread: number
+type State = {
+  threads: Thread[]
+  listLoading: boolean
+  selected: string | null
+  byPhone: Record<string, ThreadState>
 }
 
-type Message = {
-  role: Role
-  text: string
-  created_at: string | null
-  tool_name: string | null
-  staff_name: string | null
+type Action =
+  | { type: 'list/seed'; threads: Thread[] }
+  | { type: 'list/loading'; loading: boolean }
+  | { type: 'thread/select'; phone: string | null }
+  | { type: 'thread/loading'; phone: string; loading: boolean }
+  | { type: 'thread/seed'; phone: string; messages: Message[]; mode: Mode }
+  | { type: 'event'; event: InboxEvent }
+  | { type: 'send/optimistic'; phone: string; message: Message }
+  | { type: 'send/failed'; phone: string; clientMsgId: string }
+
+const initial: State = {
+  threads: [],
+  listLoading: true,
+  selected: null,
+  byPhone: {},
 }
 
-const POLL_LIST_MS = 3000
-const POLL_THREAD_MS = 2000
+function bumpThread(threads: Thread[], patch: Partial<Thread> & { customer_id: string }): Thread[] {
+  const idx = threads.findIndex((t) => t.customer_id === patch.customer_id)
+  if (idx === -1) {
+    const created: Thread = {
+      customer_id: patch.customer_id,
+      last_message_preview: patch.last_message_preview ?? '',
+      last_message_at: patch.last_message_at ?? null,
+      last_message_role: patch.last_message_role ?? null,
+      mode: patch.mode ?? 'auto',
+      unread: patch.unread ?? 0,
+    }
+    return sortByRecency([created, ...threads])
+  }
+  const merged: Thread = { ...threads[idx], ...stripUndefined(patch) }
+  const next = threads.slice()
+  next[idx] = merged
+  return sortByRecency(next)
+}
+
+function stripUndefined<T extends Record<string, unknown>>(obj: T): Partial<T> {
+  const out: Partial<T> = {}
+  for (const [k, v] of Object.entries(obj)) {
+    if (v !== undefined) (out as Record<string, unknown>)[k] = v
+  }
+  return out
+}
+
+function sortByRecency(threads: Thread[]): Thread[] {
+  return threads.slice().sort((a, b) => (b.last_message_at ?? '').localeCompare(a.last_message_at ?? ''))
+}
+
+function reducer(state: State, action: Action): State {
+  switch (action.type) {
+    case 'list/loading':
+      return { ...state, listLoading: action.loading }
+    case 'list/seed':
+      return { ...state, threads: sortByRecency(action.threads), listLoading: false }
+    case 'thread/select':
+      return { ...state, selected: action.phone }
+    case 'thread/loading': {
+      const existing = state.byPhone[action.phone] ?? { messages: [], mode: 'auto', loading: false }
+      return {
+        ...state,
+        byPhone: { ...state.byPhone, [action.phone]: { ...existing, loading: action.loading } },
+      }
+    }
+    case 'thread/seed':
+      return {
+        ...state,
+        byPhone: {
+          ...state.byPhone,
+          [action.phone]: { messages: action.messages, mode: action.mode, loading: false },
+        },
+      }
+    case 'send/optimistic': {
+      const existing = state.byPhone[action.phone] ?? { messages: [], mode: 'auto', loading: false }
+      return {
+        ...state,
+        byPhone: {
+          ...state.byPhone,
+          [action.phone]: { ...existing, messages: [...existing.messages, action.message] },
+        },
+      }
+    }
+    case 'send/failed': {
+      const existing = state.byPhone[action.phone]
+      if (!existing) return state
+      const messages = existing.messages.map((m) =>
+        m.client_msg_id === action.clientMsgId ? { ...m, pending: false, failed: true } : m,
+      )
+      return {
+        ...state,
+        byPhone: { ...state.byPhone, [action.phone]: { ...existing, messages } },
+      }
+    }
+    case 'event':
+      return applyEvent(state, action.event)
+  }
+}
+
+function applyEvent(state: State, event: InboxEvent): State {
+  switch (event.type) {
+    case 'hello':
+      return state
+    case 'message.new': {
+      const { customer_id, message } = event.data
+      const existing = state.byPhone[customer_id]
+      let byPhone = state.byPhone
+      if (existing) {
+        const cid = message.client_msg_id ?? null
+        let replaced = false
+        const messages = existing.messages.map((m) => {
+          if (replaced) return m
+          if (cid && m.client_msg_id === cid && m.pending) {
+            replaced = true
+            return { ...message }
+          }
+          if (
+            m.pending &&
+            m.role === message.role &&
+            m.text === message.text
+          ) {
+            replaced = true
+            return { ...message }
+          }
+          return m
+        })
+        if (!replaced) {
+          const isDup = messages.some(
+            (m) =>
+              m.role === message.role &&
+              m.text === message.text &&
+              m.created_at === message.created_at &&
+              !m.pending,
+          )
+          if (!isDup) messages.push({ ...message })
+        }
+        byPhone = { ...byPhone, [customer_id]: { ...existing, messages } }
+      }
+      return { ...state, byPhone }
+    }
+    case 'thread.updated': {
+      const threads = bumpThread(state.threads, event.data)
+      const next: State = { ...state, threads }
+      if (event.data.mode !== undefined) {
+        const existing = state.byPhone[event.data.customer_id]
+        if (existing) {
+          next.byPhone = {
+            ...state.byPhone,
+            [event.data.customer_id]: { ...existing, mode: event.data.mode },
+          }
+        }
+      }
+      return next
+    }
+    case 'mode.changed': {
+      const threads = bumpThread(state.threads, {
+        customer_id: event.data.customer_id,
+        mode: event.data.mode,
+      })
+      const existing = state.byPhone[event.data.customer_id]
+      const byPhone = existing
+        ? {
+            ...state.byPhone,
+            [event.data.customer_id]: { ...existing, mode: event.data.mode },
+          }
+        : state.byPhone
+      return { ...state, threads, byPhone }
+    }
+    case 'read.updated':
+      return {
+        ...state,
+        threads: bumpThread(state.threads, {
+          customer_id: event.data.customer_id,
+          unread: 0,
+        }),
+      }
+  }
+}
+
+async function fetchThreads(): Promise<Thread[]> {
+  const res = await fetch('/api/inbox', { cache: 'no-store' })
+  if (!res.ok) return []
+  const data = await res.json()
+  return Array.isArray(data?.threads) ? data.threads : []
+}
+
+async function fetchMessages(phone: string): Promise<{ messages: WireMessage[]; mode: Mode }> {
+  const res = await fetch(`/api/inbox/${encodeURIComponent(phone)}`, { cache: 'no-store' })
+  if (!res.ok) return { messages: [], mode: 'auto' }
+  const data = await res.json()
+  return {
+    messages: Array.isArray(data?.messages) ? data.messages : [],
+    mode: (data?.mode as Mode) ?? 'auto',
+  }
+}
+
+async function postRead(phone: string): Promise<void> {
+  try {
+    await fetch(`/api/inbox/${encodeURIComponent(phone)}/read`, { method: 'POST' })
+  } catch {
+    /* SSE will reconcile */
+  }
+}
 
 export function InboxView() {
-  const [threads, setThreads] = useState<Thread[]>([])
-  const [loading, setLoading] = useState(true)
-  const [selected, setSelected] = useState<string | null>(null)
+  const [state, dispatch] = useReducer(reducer, initial)
+  const selectedRef = useRef(state.selected)
+  selectedRef.current = state.selected
 
-  const fetchThreads = useCallback(async () => {
-    try {
-      const res = await fetch('/api/inbox', { cache: 'no-store' })
-      if (!res.ok) return
-      const data = await res.json()
-      setThreads(Array.isArray(data?.threads) ? data.threads : [])
-    } finally {
-      setLoading(false)
-    }
+  const reseedList = useCallback(async () => {
+    const threads = await fetchThreads()
+    dispatch({ type: 'list/seed', threads })
+  }, [])
+
+  const reseedThread = useCallback(async (phone: string) => {
+    dispatch({ type: 'thread/loading', phone, loading: true })
+    const { messages, mode } = await fetchMessages(phone)
+    dispatch({ type: 'thread/seed', phone, messages, mode })
   }, [])
 
   useEffect(() => {
-    fetchThreads()
-    const id = setInterval(fetchThreads, POLL_LIST_MS)
-    return () => clearInterval(id)
-  }, [fetchThreads])
-
-  return (
-    <div className="grid h-[calc(100vh-220px)] min-h-[480px] grid-cols-[320px_1fr]">
-      <ThreadList
-        threads={threads}
-        loading={loading}
-        selected={selected}
-        onSelect={setSelected}
-      />
-      <ThreadPane
-        phone={selected}
-        onSent={fetchThreads}
-        onModeChange={fetchThreads}
-      />
-    </div>
-  )
-}
-
-function ThreadList({
-  threads,
-  loading,
-  selected,
-  onSelect,
-}: {
-  threads: Thread[]
-  loading: boolean
-  selected: string | null
-  onSelect: (phone: string) => void
-}) {
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center border-r border-card-border">
-        <Spinner />
-      </div>
-    )
-  }
-
-  if (threads.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-2 border-r border-card-border p-6 text-center text-sm text-muted">
-        <MessageCircle className="h-6 w-6 text-muted" />
-        <span>No conversations yet.</span>
-        <span className="text-xs">When customers message on WhatsApp, they&apos;ll show up here.</span>
-      </div>
-    )
-  }
-
-  return (
-    <div className="overflow-y-auto border-r border-card-border">
-      {threads.map((t) => (
-        <button
-          key={t.customer_id}
-          onClick={() => onSelect(t.customer_id)}
-          className={cn(
-            'flex w-full flex-col items-start gap-1 border-b border-card-border px-4 py-3 text-left transition-colors',
-            selected === t.customer_id ? 'bg-surface' : 'hover:bg-surface/60',
-          )}
-        >
-          <div className="flex w-full items-center gap-2">
-            <span className="flex-1 truncate text-sm font-medium text-gray-900">
-              {t.customer_id}
-            </span>
-            <Badge size="sm" variant={t.mode === 'auto' ? 'info' : 'warning'}>
-              {t.mode === 'auto' ? 'AUTO' : 'MANUAL'}
-            </Badge>
-            {t.unread > 0 ? (
-              <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary-500 px-1.5 text-[10px] font-semibold text-white">
-                {t.unread > 99 ? '99+' : t.unread}
-              </span>
-            ) : null}
-          </div>
-          <div className="w-full truncate text-xs text-muted">
-            {t.last_message_preview || '—'}
-          </div>
-          <div className="text-[10px] uppercase tracking-wide text-muted">
-            {formatRelative(t.last_message_at)}
-          </div>
-        </button>
-      ))}
-    </div>
-  )
-}
-
-function ThreadPane({
-  phone,
-  onSent,
-  onModeChange,
-}: {
-  phone: string | null
-  onSent: () => void
-  onModeChange: () => void
-}) {
-  const [messages, setMessages] = useState<Message[]>([])
-  const [mode, setMode] = useState<Mode>('auto')
-  const [draft, setDraft] = useState('')
-  const [sending, setSending] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const scrollerRef = useRef<HTMLDivElement>(null)
-
-  const fetchMessages = useCallback(async () => {
-    if (!phone) return
-    const res = await fetch(`/api/inbox/${encodeURIComponent(phone)}`, {
-      cache: 'no-store',
-    })
-    if (!res.ok) return
-    const data = await res.json()
-    setMessages(Array.isArray(data?.messages) ? data.messages : [])
-    setMode((data?.mode as Mode) ?? 'auto')
-  }, [phone])
+    reseedList()
+  }, [reseedList])
 
   useEffect(() => {
-    if (!phone) {
-      setMessages([])
-      return
+    if (!state.selected) return
+    const phone = state.selected
+    reseedThread(phone)
+    postRead(phone)
+  }, [state.selected, reseedThread])
+
+  const onEvent = useCallback((event: InboxEvent) => {
+    dispatch({ type: 'event', event })
+    if (
+      event.type === 'message.new' &&
+      event.data.message.role === 'customer' &&
+      event.data.customer_id === selectedRef.current &&
+      typeof document !== 'undefined' &&
+      document.visibilityState === 'visible'
+    ) {
+      postRead(event.data.customer_id)
     }
-    setLoading(true)
-    fetchMessages().finally(() => setLoading(false))
+  }, [])
 
-    // Mark thread read when opening.
-    fetch(`/api/inbox/${encodeURIComponent(phone)}/read`, { method: 'POST' })
-      .catch(() => undefined)
-      .finally(onSent)
+  const onResync = useCallback(() => {
+    reseedList()
+    if (selectedRef.current) reseedThread(selectedRef.current)
+  }, [reseedList, reseedThread])
 
-    const id = setInterval(() => {
-      fetchMessages()
-      fetch(`/api/inbox/${encodeURIComponent(phone)}/read`, { method: 'POST' }).catch(
-        () => undefined,
-      )
-    }, POLL_THREAD_MS)
-    return () => clearInterval(id)
-  }, [phone, fetchMessages, onSent])
-
-  useEffect(() => {
-    const el = scrollerRef.current
-    if (el) el.scrollTop = el.scrollHeight
-  }, [messages.length, phone])
-
-  if (!phone) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-2 p-8 text-center text-sm text-muted">
-        <MessageCircle className="h-7 w-7 text-muted" />
-        <span>Pick a conversation to view messages.</span>
-      </div>
-    )
-  }
-
-  const send = async () => {
-    const text = draft.trim()
-    if (!text || sending) return
-    setSending(true)
-    try {
-      const res = await fetch(`/api/inbox/${encodeURIComponent(phone)}`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ text }),
-      })
-      if (res.ok) {
-        setDraft('')
-        await fetchMessages()
-        onSent()
-      }
-    } finally {
-      setSending(false)
-    }
-  }
-
-  const toggleMode = async () => {
-    const next: Mode = mode === 'auto' ? 'manual' : 'auto'
-    const res = await fetch(`/api/inbox/${encodeURIComponent(phone)}/mode`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ mode: next }),
-    })
-    if (res.ok) {
-      setMode(next)
-      onModeChange()
-    }
-  }
+  useInboxEvents(onEvent, onResync)
 
   return (
-    <div className="flex flex-col">
-      <header className="flex items-center justify-between gap-3 border-b border-card-border px-5 py-3">
-        <div>
-          <div className="text-sm font-semibold text-gray-900">{phone}</div>
-          <div className="text-xs text-muted">
-            {mode === 'auto' ? 'AI agent is replying automatically.' : 'You are replying manually. Agent paused.'}
-          </div>
-        </div>
-        <Button
-          variant={mode === 'auto' ? 'outline' : 'secondary'}
-          size="sm"
-          onClick={toggleMode}
-        >
-          Auto-reply: {mode === 'auto' ? 'ON' : 'OFF'}
-        </Button>
-      </header>
-
-      <div ref={scrollerRef} className="flex-1 overflow-y-auto bg-surface/30 px-5 py-4">
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Spinner />
-          </div>
-        ) : messages.length === 0 ? (
-          <div className="py-12 text-center text-sm text-muted">No messages yet.</div>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {messages.map((m, i) => (
-              <Bubble key={i} message={m} />
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="flex items-center gap-2 border-t border-card-border px-5 py-3">
-        <Input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault()
-              send()
-            }
-          }}
-          placeholder="Type a reply to send via WhatsApp..."
-          disabled={sending}
+    <div className="flex h-[calc(100vh-180px)] min-h-[520px] gap-4">
+      <div className="w-80 shrink-0">
+        <ThreadList
+          threads={state.threads}
+          loading={state.listLoading}
+          selected={state.selected}
+          onSelect={(phone) => dispatch({ type: 'thread/select', phone })}
         />
-        <Button onClick={send} loading={sending} leftIcon={<Send className="h-4 w-4" />}>
-          Send
-        </Button>
       </div>
+      <ThreadPane
+        phone={state.selected}
+        threadState={state.selected ? state.byPhone[state.selected] : undefined}
+        onOptimistic={(phone, message) => dispatch({ type: 'send/optimistic', phone, message })}
+        onSendFailed={(phone, clientMsgId) => dispatch({ type: 'send/failed', phone, clientMsgId })}
+      />
     </div>
   )
-}
-
-function Bubble({ message }: { message: Message }) {
-  if (message.role === 'tool') {
-    return (
-      <div className="self-center rounded-md bg-gray-100 px-3 py-1 text-[11px] text-muted">
-        tool: {message.tool_name ?? 'call'}
-      </div>
-    )
-  }
-
-  const isInbound = message.role === 'customer'
-  const isStaff = message.role === 'staff'
-
-  return (
-    <div className={cn('flex', isInbound ? 'justify-start' : 'justify-end')}>
-      <div
-        className={cn(
-          'max-w-[75%] rounded-2xl px-4 py-2 text-sm',
-          isInbound
-            ? 'bg-white text-gray-900 border border-card-border'
-            : isStaff
-              ? 'bg-secondary-100 text-gray-900'
-              : 'bg-primary-500 text-white',
-        )}
-      >
-        {isStaff && message.staff_name ? (
-          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide opacity-70">
-            {message.staff_name} (staff)
-          </div>
-        ) : null}
-        <div className="whitespace-pre-wrap">{message.text}</div>
-        {message.created_at ? (
-          <div
-            className={cn(
-              'mt-1 text-[10px]',
-              isInbound ? 'text-muted' : isStaff ? 'text-gray-600' : 'text-white/70',
-            )}
-          >
-            {formatTime(message.created_at)}
-          </div>
-        ) : null}
-      </div>
-    </div>
-  )
-}
-
-function formatRelative(iso: string | null): string {
-  if (!iso) return ''
-  const then = Date.parse(iso)
-  if (Number.isNaN(then)) return ''
-  const seconds = Math.max(0, (Date.now() - then) / 1000)
-  if (seconds < 60) return 'just now'
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`
-  if (seconds < 86_400) return `${Math.floor(seconds / 3600)}h ago`
-  return `${Math.floor(seconds / 86_400)}d ago`
-}
-
-function formatTime(iso: string): string {
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return ''
-  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }

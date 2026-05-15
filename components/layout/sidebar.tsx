@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import {
   BookOpen,
@@ -14,6 +14,7 @@ import {
   ShoppingCart,
   Users,
 } from 'lucide-react'
+import { useInboxEvents } from '@/lib/hooks/use-inbox-events'
 import { SidebarNavItem } from './sidebar-nav-item'
 import { UserMenu } from './user-menu'
 
@@ -125,31 +126,47 @@ export function Sidebar() {
 }
 
 function useInboxUnread(enabled: boolean) {
-  const [unread, setUnread] = useState(0)
+  const [byPhone, setByPhone] = useState<Record<string, number>>({})
+
+  const reseed = useCallback(async () => {
+    try {
+      const res = await fetch('/api/inbox', { cache: 'no-store' })
+      if (!res.ok) return
+      const data = await res.json()
+      const threads = Array.isArray(data?.threads) ? data.threads : []
+      const next: Record<string, number> = {}
+      for (const t of threads) {
+        if (t?.customer_id) next[t.customer_id] = Number(t.unread ?? 0)
+      }
+      setByPhone(next)
+    } catch {
+      /* ignore — sidebar shouldn't crash on network errors */
+    }
+  }, [])
 
   useEffect(() => {
     if (!enabled) return
-    let cancelled = false
+    reseed()
+  }, [enabled, reseed])
 
-    const tick = async () => {
-      try {
-        const res = await fetch('/api/inbox', { cache: 'no-store' })
-        if (!res.ok) return
-        const data = await res.json()
-        if (cancelled) return
-        setUnread(Number(data?.total_unread ?? 0))
-      } catch {
-        // ignore network errors — sidebar shouldn't crash
+  useInboxEvents(
+    (event) => {
+      if (!enabled) return
+      if (event.type === 'thread.updated' && event.data.unread !== undefined) {
+        const id = event.data.customer_id
+        const unread = event.data.unread
+        setByPhone((prev) => (prev[id] === unread ? prev : { ...prev, [id]: unread }))
+      } else if (event.type === 'read.updated') {
+        const id = event.data.customer_id
+        setByPhone((prev) => (prev[id] === 0 ? prev : { ...prev, [id]: 0 }))
       }
-    }
+    },
+    () => {
+      if (enabled) reseed()
+    },
+  )
 
-    tick()
-    const id = setInterval(tick, 10_000)
-    return () => {
-      cancelled = true
-      clearInterval(id)
-    }
-  }, [enabled])
-
-  return unread
+  let total = 0
+  for (const v of Object.values(byPhone)) total += v
+  return total
 }

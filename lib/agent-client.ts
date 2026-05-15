@@ -1,10 +1,10 @@
 const DEFAULT_BASE = 'http://localhost:8080'
 
-function baseUrl() {
+export function agentBaseUrl(): string {
   return process.env.AI_AGENT_BASE_URL ?? DEFAULT_BASE
 }
 
-function headers() {
+export function agentAuthHeaders(): Record<string, string> {
   const h: Record<string, string> = { 'content-type': 'application/json' }
   const key = process.env.AI_AGENT_API_KEY
   if (key) h.authorization = `Bearer ${key}`
@@ -15,10 +15,10 @@ export async function agentFetch(
   path: string,
   init: RequestInit = {},
 ): Promise<Response> {
-  const url = `${baseUrl()}${path}`
+  const url = `${agentBaseUrl()}${path}`
   return fetch(url, {
     ...init,
-    headers: { ...headers(), ...(init.headers ?? {}) },
+    headers: { ...agentAuthHeaders(), ...(init.headers ?? {}) },
     cache: 'no-store',
   })
 }
