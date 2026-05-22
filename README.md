@@ -1,343 +1,241 @@
-# Combo POS - Modern Restaurant Point-of-Sale System
+# Combo POS — Restaurant Point-of-Sale System
 
-A complete, production-ready restaurant Point-of-Sale system built with Next.js, React, TypeScript, PostgreSQL, and Prisma.
+A full-stack, production-ready restaurant POS system built for the Rwandan market. Currency is RWF, authentication is phone-based, and all amounts are formatted accordingly.
 
-## 🚀 Features
+## Features
 
-### Core POS Features
-- **Intuitive Touch Interface** - Optimized for tablets and desktops
-- **Real-time Order Management** - Add/remove items, modify quantities, order notes
-- **Dynamic Cart System** - Live total calculation with tax and service charges
-- **Multiple Payment Methods** - Cash, Card, Mobile payments
-- **Receipt Generation** - Print-ready receipts with order details
-- **Order Confirmation** - Professional confirmation screen with order summary
+### POS / Sell
+- Touch-optimized menu grid with category filtering and real-time stock badges
+- Per-item notes ("no onions", "extra sauce") passed through to kitchen receipt
+- Sides and skewer modals for item customization
+- Cart with quantity control, item-level notes, discount, and service charge
+- MoMo and cash payment flows
+- Order confirmation with customer receipt and kitchen receipt printing
+- Reprint customer or kitchen receipt after order completion
 
-### Admin Dashboard
-- **Sales Analytics** - Daily, weekly, and monthly sales tracking
-- **Order Management** - View and track all orders
-- **Popular Items** - Visual analytics of best-selling menu items
-- **Dashboard Overview** - Key metrics and performance indicators
+### Kitchen Display
+- Dedicated full-screen kitchen view at `/kitchen` (no login required)
+- Real-time pending order queue via Server-Sent Events (SSE)
+- Ready / complete buttons per order
 
-### Technical Features
-- **Role-based Authentication** - Admin, Manager, and Staff roles
-- **Responsive Design** - Works on tablets, desktops, and mobile devices
-- **Real-time Updates** - Live order tracking and updates
-- **Database Integration** - PostgreSQL with Prisma ORM
-- **Type Safety** - Full TypeScript implementation
-- **Modern UI** - TailwindCSS with professional restaurant styling
+### Orders & Management
+- Order list with status tracking (Pending → Preparing → Ready → Served → Completed)
+- Order item void with manager accountability logging
+- SSE-based order events for live updates
 
-## 🛠️ Tech Stack
+### Dashboard & Reports
+- Dashboard with key metrics, recent orders, and quick stats
+- **Sales chart** — daily revenue line chart and category bar chart (past 30 days)
+- **Date-range report** — total orders, revenue, tax, service charge, discounts, by payment method and category; CSV export
+- **Staff performance** — orders processed, revenue, and average order value per staff member
+- **Food cost report** — theoretical cost vs. revenue per menu item using recipes
+- **Waste analysis** — waste as % of opening stock per item, worst offenders surfaced
+- **Inventory valuation** — total raw material stock value with trend
 
-### Frontend
-- **Next.js 14** - Full-stack React framework
-- **React 18** - Modern React with hooks and context
-- **TypeScript** - Type-safe development
-- **TailwindCSS** - Utility-first CSS framework
-- **NextAuth.js** - Authentication and session management
+### Stock & Inventory
+- Raw material management with daily stock snapshots
+- **Shared pool stock**: raw materials (e.g. whole chickens, kofta ea) tracked per unit; opening pre-fills from previous day's closing stock
+- **Convert flow**: one-click conversion of raw material quantities into per-item portion counts (e.g. 3.75 whole chicken → 15 quarters, 7 halves, 3 fulls) with editable opening values
+- Per-item stock tracking for non-recipe items (Mandi, whole fish, etc.) with opening / sold / waste / closing columns
+- **Full pool day-close**: editable Sold and Waste fields per raw material at closing; closing = opening − sold − waste
+- Recipe management linking menu items to raw material usage
+- Day-open / day-close workflow covering both pool and per-item stock; Edit Closing supported
 
-### Backend
-- **Next.js API Routes** - RESTful API endpoints
-- **Prisma ORM** - Type-safe database operations
-- **PostgreSQL** - Production-ready relational database
-- **bcryptjs** - Password hashing and security
+### Catalog & Menu
+- Category and menu item management (ADMIN/MANAGER)
+- Featured item flags, sort order, active/inactive toggle
 
-### Development Tools
-- **ESLint** - Code linting and quality
-- **Prettier** - Code formatting
-- **TypeScript** - Static type checking
+### Settings
+- Business info, operating hours, payment methods, receipt customization
+- Category management and promotion rules configuration
 
-## 📋 Prerequisites
+### Inbox (AI Agent)
+- Real-time customer message inbox via SSE
+- Agent handoff for special orders and support
 
-Before setting up the project, ensure you have:
+### Books & Expenses
+- Expense logging with categories
+- Salary and debt tracking
 
-- **Node.js 18+** installed
-- **PostgreSQL** database (local or hosted)
-- **yarn** package manager (preferred) or npm
+### Staff
+- Staff directory with role management (ADMIN, MANAGER, STAFF)
+- Salary configuration per employee
 
-## 🚀 Quick Start
+## Tech Stack
 
-### 1. Clone the Repository
+| Layer | Technology |
+|-------|------------|
+| Framework | Next.js 14, App Router |
+| Language | TypeScript |
+| Auth | NextAuth.js v4, JWT, phone + password |
+| Database | PostgreSQL via Prisma ORM v5 |
+| UI | TailwindCSS, Lucide icons, Sonner toasts |
+| Charts | Recharts |
+| Password hashing | bcryptjs |
 
-\`\`\`bash
+## Prerequisites
+
+- Node.js 18+
+- PostgreSQL (local or hosted)
+- yarn
+
+## Quick Start
+
+### 1. Clone and install
+
+```bash
 git clone <repository-url>
 cd combo_pos
-\`\`\`
-
-### 2. Install Dependencies
-
-\`\`\`bash
 yarn install
-# or use the setup script for full setup
-yarn setup
-\`\`\`
+```
 
-### 3. Environment Setup
+### 2. Environment setup
 
-Copy the environment example file:
-
-\`\`\`bash
+```bash
 cp .env.example .env.local
-\`\`\`
+```
 
-Edit \`.env.local\` with your configuration:
+Edit `.env.local`:
 
-\`\`\`env
-# Database Configuration
+```env
+# Database
 DATABASE_URL="postgresql://username:password@localhost:5432/combo_pos"
 
-# NextAuth Configuration
-NEXTAUTH_URL="http://localhost:3000"
-NEXTAUTH_SECRET="your-nextauth-secret-key-here"
+# NextAuth
+NEXTAUTH_URL="http://localhost:3008"
+NEXTAUTH_SECRET="your-secret-here"
 
-# App Configuration
-NEXT_PUBLIC_APP_NAME="Combo POS"
-NEXT_PUBLIC_CURRENCY="USD"
-NEXT_PUBLIC_TAX_RATE="0.08"
-NEXT_PUBLIC_SERVICE_CHARGE="0.05"
-\`\`\`
+# AI Agent integration (optional)
+COMBO_POS_API_KEY="shared-secret-for-agent"
+AI_AGENT_BASE_URL="http://localhost:8080"
+```
 
-### 4. Database Setup
+### 3. Database setup
 
-Generate Prisma client:
+```bash
+yarn db:generate   # generate Prisma client
+yarn db:push       # push schema to database
+yarn db:seed       # seed demo data
+```
 
-\`\`\`bash
-yarn db:generate
-\`\`\`
+### 4. Run
 
-Push database schema:
-
-\`\`\`bash
-yarn db:push
-\`\`\`
-
-Seed the database with sample data:
-
-\`\`\`bash
-yarn db:seed
-\`\`\`
-
-### 5. Run Development Server
-
-\`\`\`bash
+```bash
 yarn dev
-\`\`\`
+```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Open [http://localhost:3008](http://localhost:3008). The dev server runs on port **3008**.
 
-## 🔐 Default Login Credentials
+## Default Login
 
-The system comes with pre-configured demo accounts:
+Authentication uses **phone number + password** (no email). Check `prisma/seed.ts` for the seeded demo credentials.
 
-### Admin Account
-- **Email:** admin@combo.com
-- **Password:** admin123
-- **Access:** Full dashboard and POS access
+## App Routes & Access
 
-### Staff Account
-- **Email:** staff@combo.com
-- **Password:** staff123
-- **Access:** POS system only
+| Route | Description | Roles |
+|-------|-------------|-------|
+| `/dashboard` | Sales overview and key metrics | ADMIN, MANAGER |
+| `/sell` | POS sell screen | ALL |
+| `/orders` | Order list and management | ALL |
+| `/reports` | All report types | ADMIN, MANAGER |
+| `/catalog` | Menu and category management | ADMIN, MANAGER |
+| `/stock` | Raw material and stock management | ADMIN, MANAGER |
+| `/settings` | Business settings | ADMIN |
+| `/expenses` | Expense tracking | ADMIN |
+| `/staff` | Staff directory | ADMIN |
+| `/books` | Salary and debt ledger | ADMIN |
+| `/inbox` | AI customer message inbox | ALL |
+| `/kitchen` | Kitchen display (no auth) | — |
 
-## 📱 Using the System
+## Project Structure
 
-### POS Interface (/pos)
-
-1. **Login** with staff or admin credentials
-2. **Browse Menu** - Items are organized by category
-3. **Add Items** - Click items to add them to cart
-4. **Modify Orders** - Adjust quantities, add notes
-5. **Checkout** - Select payment method and complete order
-6. **Print Receipt** - Generate and print order receipt
-
-### Admin Dashboard (/dashboard)
-
-1. **Login** with admin or manager credentials
-2. **View Analytics** - Daily, weekly, monthly sales data
-3. **Monitor Orders** - Track recent orders and status
-4. **Popular Items** - See best-selling menu items
-
-## 🏗️ Project Structure
-
-\`\`\`
+```
 combo_pos/
-├── app/                    # Next.js app directory
-│   ├── api/               # API routes
-│   ├── auth/             # Authentication pages
-│   ├── dashboard/        # Admin dashboard
-│   ├── pos/              # POS interface
-│   └── globals.css       # Global styles
-├── components/            # React components
-│   ├── dashboard/        # Dashboard components
-│   ├── pos/             # POS components
-│   └── providers.tsx    # App providers
-├── lib/                   # Utility libraries
-│   ├── auth.ts          # Authentication config
-│   ├── prisma.ts        # Database client
-│   └── utils.ts         # Helper functions
-├── prisma/               # Database schema and migrations
-│   ├── schema.prisma    # Database schema
-│   └── seed.ts          # Database seeding
-├── types/                # TypeScript type definitions
-└── public/              # Static assets
-\`\`\`
+├── app/
+│   ├── (app)/              # Main app (wrapped in AppShell)
+│   │   ├── dashboard/
+│   │   ├── sell/
+│   │   ├── orders/
+│   │   ├── reports/
+│   │   ├── catalog/
+│   │   ├── stock/
+│   │   ├── settings/
+│   │   ├── expenses/
+│   │   ├── staff/
+│   │   ├── books/
+│   │   └── inbox/
+│   ├── kitchen/            # Kitchen display (unauthenticated)
+│   ├── api/                # API routes
+│   └── auth/               # Login page
+├── components/
+│   ├── pos/                # Cart, menu grid, modals
+│   ├── manage/             # Order, stock, material, recipe management
+│   ├── reports/            # All report components
+│   ├── settings/           # Settings panels
+│   ├── receipts/           # Customer and kitchen receipts
+│   ├── payments/           # MoMo payment flow
+│   └── layout/             # Sidebar, AppShell
+├── lib/                    # Auth config, Prisma client, utils, SSE helpers
+├── prisma/
+│   ├── schema.prisma
+│   └── seed.ts
+└── types/                  # Shared TypeScript types
+```
 
-## 🗃️ Database Schema
+## Database Schema (key models)
 
-The system uses a comprehensive database schema:
+- **User** — phone-based auth, roles (ADMIN/MANAGER/STAFF), salary config
+- **Category / MenuItem** — menu structure with pricing and stock linkage
+- **Order / OrderItem** — orders with status lifecycle, per-item notes, voids
+- **OrderItemVoid** — audit log for voided items
+- **Payment** — payment records linked to orders
+- **RawMaterial / RawMaterialUsage** — inventory and recipe linkage
+- **RawMaterialDailyStock** — daily pool stock per raw material (opening, current, waste, closing); one row per material per day
+- **DailyItemStockSnapshot** — daily per-item stock for non-recipe items and converted recipe portions (opening, sold, waste, closing)
+- **Promotion / PromotionItem** — time-bounded discount rules
+- **BusinessSettings** — configurable business info, hours, and receipt content
+- **Expense / SalaryPayment / CreditEntry / DebtEntry** — financial ledger
 
-### Core Tables
-- **Users** - Authentication and role management
-- **Categories** - Menu organization
-- **MenuItems** - Restaurant menu items
-- **Orders** - Customer orders
-- **OrderItems** - Individual order line items
-- **Payments** - Payment tracking
-- **DailySales** - Sales analytics
+## Available Scripts
 
-### Key Features
-- **Role-based access** (Admin, Manager, Staff)
-- **Order status tracking** (Pending, Preparing, Ready, Served)
-- **Payment method support** (Cash, Card, Mobile)
-- **Inventory tracking** (optional stock management)
-- **Sales analytics** (daily aggregation)
+```bash
+yarn dev           # Start dev server on port 3008
+yarn build         # Build for production
+yarn start         # Start production server
+yarn lint          # Run ESLint
 
-## 📊 Available Scripts
+yarn db:generate   # Generate Prisma client
+yarn db:push       # Push schema to database
+yarn db:seed       # Seed demo data
+yarn db:studio     # Open Prisma Studio GUI
+yarn setup         # Full first-time setup (install + db:generate + db:push + db:seed)
+```
 
-\`\`\`bash
-# Development
-npm run dev          # Start development server
-npm run build        # Build production version
-npm run start        # Start production server
-npm run lint         # Run ESLint
+## Environment Variables
 
-# Database Operations
-npm run db:generate  # Generate Prisma client
-npm run db:push      # Push schema to database
-npm run db:seed      # Seed database with sample data
-npm run db:studio    # Open Prisma Studio GUI
-\`\`\`
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `NEXTAUTH_URL` | Yes | App URL (use `http://localhost:3008` in dev) |
+| `NEXTAUTH_SECRET` | Yes | Random secret for JWT signing |
+| `COMBO_POS_API_KEY` | No | Shared secret for AI agent integration |
+| `AI_AGENT_BASE_URL` | No | AI agent service URL (default `http://localhost:8080`) |
 
-## 🚀 Production Deployment
+## Production Deployment
 
-### Environment Variables
+1. Set environment variables in your hosting platform
+2. Run `yarn build`
+3. Run `yarn db:generate && yarn db:push` against your production database
+4. Start with `yarn start` or use PM2
 
-Set these environment variables in your production environment:
+Recommended platforms: Vercel (Next.js optimized), Railway (Postgres + Next.js), DigitalOcean App Platform.
 
-\`\`\`env
-DATABASE_URL=your_production_database_url
-NEXTAUTH_URL=your_production_domain
-NEXTAUTH_SECRET=secure_random_secret
-\`\`\`
+## Troubleshooting
 
-### Deployment Steps
+**Database connection error** — verify PostgreSQL is running and `DATABASE_URL` is correct.
 
-1. **Build the application:**
-   \`\`\`bash
-   npm run build
-   \`\`\`
+**Auth issues** — confirm `NEXTAUTH_SECRET` is set and `NEXTAUTH_URL` matches the port you're running on (`3008` in dev).
 
-2. **Deploy to your platform:**
-   - **Vercel:** Connect your repository for automatic deployment
-   - **Netlify:** Deploy with build command \`npm run build\`
-   - **Docker:** Use the included Dockerfile
-   - **VPS:** Upload build files and run with PM2
+**Build errors** — run `yarn db:generate` before building; ensure all required env vars are set.
 
-3. **Set up production database:**
-   \`\`\`bash
-   npm run db:generate
-   npm run db:push
-   npm run db:seed
-   \`\`\`
-
-### Recommended Hosting
-
-- **Vercel** - Optimized for Next.js applications
-- **Railway** - PostgreSQL + Next.js hosting
-- **Heroku** - Full-stack application deployment
-- **DigitalOcean** - VPS with database hosting
-
-## 🔧 Customization
-
-### Menu Configuration
-
-Edit the database seed file to customize your menu:
-
-\`\`\`typescript
-// prisma/seed.ts
-const menuItem = await prisma.menuItem.create({
-  data: {
-    name: 'Your Item Name',
-    description: 'Item description',
-    price: 12.99,
-    cost: 5.50,
-    categoryId: category.id,
-  },
-})
-\`\`\`
-
-### Styling and Branding
-
-Update the styling in:
-
-- \`tailwind.config.js\` - Color scheme and theme
-- \`app/globals.css\` - Global styles and components
-- Components - Individual component styling
-
-### Business Rules
-
-Configure business settings in \`.env.local\`:
-
-\`\`\`env
-NEXT_PUBLIC_TAX_RATE="0.08"        # 8% tax rate
-NEXT_PUBLIC_SERVICE_CHARGE="0.05"  # 5% service charge
-\`\`\`
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**Database Connection Error:**
-- Verify PostgreSQL is running
-- Check DATABASE_URL format
-- Ensure database exists
-
-**Authentication Issues:**
-- Verify NEXTAUTH_SECRET is set
-- Check NEXTAUTH_URL matches your domain
-- Clear browser cookies and try again
-
-**Build Errors:**
-- Run \`npm run db:generate\` before building
-- Ensure all environment variables are set
-- Check for TypeScript errors with \`npm run lint\`
-
-### Development Tips
-
-- Use \`npm run db:studio\` to inspect database visually
-- Check browser console for frontend errors
-- Use \`console.log\` in API routes for debugging
-- Enable verbose logging in development
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🙋‍♂️ Support
-
-For support and questions:
-
-- Create an issue in the repository
-- Check the troubleshooting section
-- Review the code comments for implementation details
-
----
-
-**Built with ❤️ for the restaurant industry**
+**Prisma client out of sync** — run `yarn db:generate` after any schema change.

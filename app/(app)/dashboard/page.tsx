@@ -7,13 +7,21 @@ import { DashboardStats, OrderWithItems } from '@/types'
 import { StatsCards } from '@/components/dashboard/stats-cards'
 import { RecentOrders } from '@/components/dashboard/recent-orders'
 import { PopularItems } from '@/components/dashboard/popular-items'
+import { SalesLineChart } from '@/components/reports/sales-line-chart'
+import { CategoryBarChart } from '@/components/reports/category-bar-chart'
 import { DashboardSkeleton } from '@/components/skeletons/dashboard-skeleton'
 import { toast } from 'sonner'
+
+type ChartData = {
+  dailySales: { date: string; label: string; total: number; orders: number }[]
+  byCategory: { category: string; total: number; orders: number }[]
+}
 
 export default function DashboardPage() {
   const { data: session, status } = useSession()
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [orders, setOrders] = useState<OrderWithItems[]>([])
+  const [chartData, setChartData] = useState<ChartData | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -29,24 +37,19 @@ export default function DashboardPage() {
 
   const fetchDashboardData = async () => {
     try {
-      const [statsResponse, ordersResponse] = await Promise.all([
+      const [statsRes, ordersRes, chartRes] = await Promise.all([
         fetch('/api/dashboard/stats'),
-        fetch('/api/orders')
+        fetch('/api/orders'),
+        fetch('/api/reports/sales-chart'),
       ])
 
-      if (statsResponse.ok) {
-        const statsData = await statsResponse.json()
-        setStats(statsData)
-      } else {
-        toast.error('Failed to load dashboard stats')
-      }
+      if (statsRes.ok) setStats(await statsRes.json())
+      else toast.error('Failed to load dashboard stats')
 
-      if (ordersResponse.ok) {
-        const ordersData = await ordersResponse.json()
-        setOrders(ordersData)
-      } else {
-        toast.error('Failed to load orders')
-      }
+      if (ordersRes.ok) setOrders(await ordersRes.json())
+      else toast.error('Failed to load orders')
+
+      if (chartRes.ok) setChartData(await chartRes.json())
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
       toast.error('Failed to load dashboard data')
@@ -68,6 +71,13 @@ export default function DashboardPage() {
         </div>
         <div className="space-y-6">
           {stats && <StatsCards stats={stats} />}
+
+          {chartData && (
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <SalesLineChart data={chartData.dailySales} />
+              <CategoryBarChart data={chartData.byCategory} />
+            </div>
+          )}
 
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             {stats && <PopularItems items={stats.popularItems} />}

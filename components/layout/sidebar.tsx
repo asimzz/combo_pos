@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import {
   BookOpen,
+  BarChart2,
   ChefHat,
   ClipboardList,
   LayoutDashboard,
@@ -64,6 +65,12 @@ const NAV_ENTRIES: NavEntry[] = [
     href: '/stock',
     label: 'Stock',
     icon: <Package className={ICON_SIZE} />,
+    roles: ['ADMIN', 'MANAGER'],
+  },
+  {
+    href: '/reports',
+    label: 'Reports',
+    icon: <BarChart2 className={ICON_SIZE} />,
     roles: ['ADMIN', 'MANAGER'],
   },
   {

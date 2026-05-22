@@ -8,103 +8,104 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  phone     String   @unique
-  name      String
-  password  String
-  role      UserRole @default(STAFF)
-  active    Boolean  @default(true)
-  monthlySalary Float? @default(0)
-  salaryDueDay  Int?   @default(1)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  orders Order[]
-  stockLogs RawMaterialStockLog[]
-  closedStockSnapshots DailyStockSnapshot[]
-  salaryPayments SalaryPayment[]
-  expenses Expense[]
-  creditEntries CreditEntry[]
-  debtEntries DebtEntry[]
-  materialEntries MaterialEntry[]
+  id                   String                   @id @default(cuid())
+  phone                String                   @unique
+  name                 String
+  password             String
+  role                 UserRole                 @default(STAFF)
+  active               Boolean                  @default(true)
+  monthlySalary        Float?                   @default(0)
+  salaryDueDay         Int?                     @default(1)
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
+  creditEntries           CreditEntry[]
+  closedItemSnapshots     DailyItemStockSnapshot[]  @relation("ItemStockCloser")
+  openedItemSnapshots     DailyItemStockSnapshot[]  @relation("ItemStockOpener")
+  closedStockSnapshots    DailyStockSnapshot[]
+  rawMaterialDailyStocks  RawMaterialDailyStock[]
+  closedPoolStocks        RawMaterialDailyStock[]   @relation("PoolStockCloser")
+  debtEntries             DebtEntry[]
+  expenses                Expense[]
+  materialEntries         MaterialEntry[]
+  orders                  Order[]
+  stockLogs               RawMaterialStockLog[]
+  salaryPayments          SalaryPayment[]
+  voidedItems             OrderItemVoid[]
 
   @@map("users")
 }
 
 model Category {
-  id          String @id @default(cuid())
+  id          String     @id @default(cuid())
   name        String
   description String?
-  active      Boolean @default(true)
-  sortOrder   Int     @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  items MenuItem[]
+  active      Boolean    @default(true)
+  sortOrder   Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  items       MenuItem[]
 
   @@map("categories")
 }
 
 model MenuItem {
-  id             String  @id @default(cuid())
-  name           String
-  description    String?
-  price          Float
-  active         Boolean @default(true)
-  featured       Boolean @default(false)
-  sortOrder      Int     @default(0)
-  image          String?
-  qrCode         String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  categoryId String
-  category   Category @relation(fields: [categoryId], references: [id])
-
-  orderItems OrderItem[]
-  rawMaterialUsage RawMaterialUsage[]
+  id                 String                   @id @default(cuid())
+  name               String
+  description        String?
+  price              Float
+  active             Boolean                  @default(true)
+  featured           Boolean                  @default(false)
+  sortOrder          Int                      @default(0)
+  image              String?
+  qrCode             String?
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+  categoryId         String
+  dailyItemSnapshots DailyItemStockSnapshot[]
+  category           Category                 @relation(fields: [categoryId], references: [id])
+  orderItems         OrderItem[]
+  rawMaterialUsage   RawMaterialUsage[]
+  promotionItems     PromotionItem[]
 
   @@map("menu_items")
 }
 
 model Order {
-  id             String      @id @default(cuid())
-  orderNumber    String      @unique
-  status         OrderStatus @default(COMPLETED)
-  customerName   String?
-  customerPhone  String?
-  notes          String?
-  subtotal       Float
-  taxAmount      Float
-  serviceCharge  Float @default(0)
-  discount       Float @default(0)
-  total          Float
-  paymentMethod  PaymentMethod
-  paymentStatus  PaymentStatus @default(PENDING)
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id])
-
-  orderItems OrderItem[]
-  payments   Payment[]
+  id            String        @id @default(cuid())
+  orderNumber   String        @unique
+  status        OrderStatus   @default(PENDING)
+  customerName  String?
+  customerPhone String?
+  notes         String?
+  subtotal      Float
+  taxAmount     Float
+  serviceCharge Float         @default(0)
+  discount      Float         @default(0)
+  total         Float
+  paymentMethod PaymentMethod
+  paymentStatus PaymentStatus @default(PENDING)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  userId        String
+  completedAt   DateTime?
+  orderItems    OrderItem[]
+  user          User          @relation(fields: [userId], references: [id])
+  payments      Payment[]
 
   @@map("orders")
 }
 
 model OrderItem {
-  id        String  @id @default(cuid())
-  quantity  Int
-  unitPrice Float
-  total     Float
-  notes     String?
-  createdAt DateTime @default(now())
-
+  id         String   @id @default(cuid())
+  quantity   Int
+  unitPrice  Float
+  total      Float
+  notes      String?
+  createdAt  DateTime @default(now())
   orderId    String
-  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   menuItemId String
   menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+  order      Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   @@map("order_items")
 }
@@ -117,70 +118,88 @@ model Payment {
   transactionId String?
   notes         String?
   createdAt     DateTime      @default(now())
-
-  orderId String
-  order   Order  @relation(fields: [orderId], references: [id])
+  orderId       String
+  order         Order         @relation(fields: [orderId], references: [id])
 
   @@map("payments")
 }
 
 model RawMaterial {
-  id          String   @id @default(cuid())
-  name        String   @unique
-  description String?
-  unit        String
-  stock       Float
-  cost        Float
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  usage RawMaterialUsage[]
-  stockLogs RawMaterialStockLog[]
-  dailySnapshots DailyStockSnapshot[]
+  id                 String                @id @default(cuid())
+  name               String                @unique
+  description        String?
+  unit               String
+  stock              Float
+  cost               Float
+  active             Boolean               @default(true)
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  dailySnapshots     DailyStockSnapshot[]
+  dailyPoolStocks    RawMaterialDailyStock[]
+  materialCategories MaterialCategory?
+  stockLogs          RawMaterialStockLog[]
+  usage              RawMaterialUsage[]
 
   @@map("raw_materials")
 }
 
-model RawMaterialUsage {
-  id             String   @id @default(cuid())
-  quantity       Float
-  createdAt      DateTime @default(now())
+model RawMaterialDailyStock {
+  id            String      @id @default(cuid())
+  date          String
+  openingStock  Float
+  currentStock  Float
+  wasteQuantity Float       @default(0)
+  closingStock  Float?
+  closedAt      DateTime?
+  rawMaterialId String
+  setById       String
+  closedById    String?
+  createdAt     DateTime    @default(now())
+  rawMaterial   RawMaterial @relation(fields: [rawMaterialId], references: [id])
+  setBy         User        @relation(fields: [setById], references: [id])
+  closedBy      User?       @relation("PoolStockCloser", fields: [closedById], references: [id])
 
-  rawMaterialId  String
-  rawMaterial    RawMaterial @relation(fields: [rawMaterialId], references: [id])
-  menuItemId     String
-  menuItem       MenuItem @relation(fields: [menuItemId], references: [id])
+  @@unique([date, rawMaterialId])
+  @@index([date])
+  @@map("raw_material_daily_stocks")
+}
+
+model RawMaterialUsage {
+  id            String      @id @default(cuid())
+  quantity      Float
+  createdAt     DateTime    @default(now())
+  rawMaterialId String
+  menuItemId    String
+  menuItem      MenuItem    @relation(fields: [menuItemId], references: [id])
+  rawMaterial   RawMaterial @relation(fields: [rawMaterialId], references: [id])
 
   @@map("raw_material_usage")
 }
 
 model RawMaterialStockLog {
-  id            String         @id @default(cuid())
+  id            String       @id @default(cuid())
   type          StockLogType
   quantity      Float
   reason        String?
-  createdAt     DateTime       @default(now())
-
+  createdAt     DateTime     @default(now())
   rawMaterialId String
-  rawMaterial   RawMaterial @relation(fields: [rawMaterialId], references: [id])
   userId        String
-  user          User @relation(fields: [userId], references: [id])
+  rawMaterial   RawMaterial  @relation(fields: [rawMaterialId], references: [id])
+  user          User         @relation(fields: [userId], references: [id])
 
   @@map("raw_material_stock_logs")
 }
 
 model DailyStockSnapshot {
-  id            String   @id @default(cuid())
-  date          String   // "YYYY-MM-DD"
+  id            String      @id @default(cuid())
+  date          String
   openingStock  Float
   closingStock  Float
-  closedAt      DateTime @default(now())
-
+  closedAt      DateTime    @default(now())
   rawMaterialId String
-  rawMaterial   RawMaterial @relation(fields: [rawMaterialId], references: [id])
   closedById    String
-  closedBy      User @relation(fields: [closedById], references: [id])
+  closedBy      User        @relation(fields: [closedById], references: [id])
+  rawMaterial   RawMaterial @relation(fields: [rawMaterialId], references: [id])
 
   @@unique([date, rawMaterialId])
   @@index([date])
@@ -191,9 +210,9 @@ model DailySales {
   id          String   @id @default(cuid())
   date        DateTime @unique
   totalOrders Int      @default(0)
-  totalSales  Float @default(0)
-  totalTax    Float @default(0)
-  totalTips   Float @default(0)
+  totalSales  Float    @default(0)
+  totalTax    Float    @default(0)
+  totalTips   Float    @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -201,16 +220,15 @@ model DailySales {
 }
 
 model SalaryPayment {
-  id         String   @id @default(cuid())
-  amount     Float
-  month      Int      // 1-12
-  year       Int
-  notes      String?
-  paidBy     String   // Admin user ID who processed the payment
-  createdAt  DateTime @default(now())
-
-  userId String
-  user   User   @relation(fields: [userId], references: [id])
+  id        String   @id @default(cuid())
+  amount    Float
+  month     Int
+  year      Int
+  notes     String?
+  paidBy    String
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
 
   @@map("salary_payments")
 }
@@ -218,7 +236,7 @@ model SalaryPayment {
 model MonthlySalarySummary {
   id            String   @id @default(cuid())
   userId        String
-  month         Int      // 1-12
+  month         Int
   year          Int
   monthlySalary Float
   totalPaid     Float    @default(0)
@@ -231,56 +249,50 @@ model MonthlySalarySummary {
 }
 
 model ExpenseCategory {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-
-  expenses Expense[]
+  id        String    @id @default(cuid())
+  name      String    @unique
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  expenses  Expense[]
 
   @@map("expense_categories")
 }
 
 model Expense {
-  id          String   @id @default(cuid())
+  id          String          @id @default(cuid())
   amount      Float
   description String?
-  date        DateTime @default(now())
-  createdAt   DateTime @default(now())
-
-  categoryId String
-  category   ExpenseCategory @relation(fields: [categoryId], references: [id])
-
-  userId String
-  user   User @relation(fields: [userId], references: [id])
+  date        DateTime        @default(now())
+  createdAt   DateTime        @default(now())
+  categoryId  String
+  userId      String
+  category    ExpenseCategory @relation(fields: [categoryId], references: [id])
+  user        User            @relation(fields: [userId], references: [id])
 
   @@map("expenses")
 }
 
 model CreditEntry {
-  id            String   @id @default(cuid())
+  id            String          @id @default(cuid())
   customerName  String
   customerPhone String?
   amount        Float
-  paidAmount    Float    @default(0)
+  paidAmount    Float           @default(0)
   description   String?
-  settled       Boolean  @default(false)
+  settled       Boolean         @default(false)
   settledAt     DateTime?
-  createdAt     DateTime @default(now())
-
-  userId String
-  user   User @relation(fields: [userId], references: [id])
-
-  payments CreditPayment[]
+  createdAt     DateTime        @default(now())
+  userId        String
+  user          User            @relation(fields: [userId], references: [id])
+  payments      CreditPayment[]
 
   @@map("credit_entries")
 }
 
 model CreditPayment {
-  id        String   @id @default(cuid())
-  amount    Float
-  createdAt DateTime @default(now())
-
+  id            String      @id @default(cuid())
+  amount        Float
+  createdAt     DateTime    @default(now())
   creditEntryId String
   creditEntry   CreditEntry @relation(fields: [creditEntryId], references: [id], onDelete: Cascade)
 
@@ -288,30 +300,27 @@ model CreditPayment {
 }
 
 model DebtEntry {
-  id            String   @id @default(cuid())
-  supplierName  String
-  contactType   String?  // "phone" or "momo"
-  contactValue  String?
-  amount        Float
-  paidAmount    Float    @default(0)
-  description   String?
-  settled       Boolean  @default(false)
-  settledAt     DateTime?
-  createdAt     DateTime @default(now())
-
-  userId String
-  user   User @relation(fields: [userId], references: [id])
-
-  payments DebtPayment[]
+  id           String        @id @default(cuid())
+  supplierName String
+  contactType  String?
+  contactValue String?
+  amount       Float
+  paidAmount   Float         @default(0)
+  description  String?
+  settled      Boolean       @default(false)
+  settledAt    DateTime?
+  createdAt    DateTime      @default(now())
+  userId       String
+  user         User          @relation(fields: [userId], references: [id])
+  payments     DebtPayment[]
 
   @@map("debt_entries")
 }
 
 model DebtPayment {
-  id        String   @id @default(cuid())
-  amount    Float
-  createdAt DateTime @default(now())
-
+  id          String    @id @default(cuid())
+  amount      Float
+  createdAt   DateTime  @default(now())
   debtEntryId String
   debtEntry   DebtEntry @relation(fields: [debtEntryId], references: [id], onDelete: Cascade)
 
@@ -319,56 +328,77 @@ model DebtPayment {
 }
 
 model MaterialCategory {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  unit      String   @default("kg")
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-
-  entries MaterialEntry[]
+  id            String          @id @default(cuid())
+  name          String          @unique
+  unit          String          @default("kg")
+  active        Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  rawMaterialId String?         @unique
+  rawMaterial   RawMaterial?    @relation(fields: [rawMaterialId], references: [id])
+  entries       MaterialEntry[]
 
   @@map("material_categories")
 }
 
 model MaterialEntry {
-  id          String   @id @default(cuid())
+  id          String           @id @default(cuid())
   quantity    Float?
   amount      Float
   description String?
-  date        DateTime @default(now())
-  createdAt   DateTime @default(now())
-
-  categoryId String
-  category   MaterialCategory @relation(fields: [categoryId], references: [id])
-
-  userId String
-  user   User @relation(fields: [userId], references: [id])
+  date        DateTime         @default(now())
+  createdAt   DateTime         @default(now())
+  categoryId  String
+  userId      String
+  category    MaterialCategory @relation(fields: [categoryId], references: [id])
+  user        User             @relation(fields: [userId], references: [id])
 
   @@map("material_entries")
 }
 
 model SpecialOrder {
-  id            String              @id @default(cuid())
+  id            String             @id @default(cuid())
   customerPhone String
   description   String
-  type          SpecialOrderType    @default(SPECIAL)
-  status        SpecialOrderStatus  @default(OPEN)
+  type          SpecialOrderType   @default(SPECIAL)
+  status        SpecialOrderStatus @default(OPEN)
   resolution    String?
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
 
   @@index([status, createdAt])
   @@map("special_orders")
 }
 
 model DailyOrderCounter {
-  id           String   @id @default(cuid())
-  date         String   @unique // YYYY-MM-DD format
-  counter      Int      @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id        String   @id @default(cuid())
+  date      String   @unique
+  counter   Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("daily_order_counter")
+}
+
+model DailyItemStockSnapshot {
+  id            String    @id @default(cuid())
+  date          String
+  openingStock  Float?
+  currentStock  Float?
+  soldQuantity  Float?
+  wasteQuantity Float     @default(0)
+  closingStock  Float?
+  openedAt      DateTime?
+  closedAt      DateTime?
+  menuItemId    String
+  openedById    String?
+  closedById    String?
+  closedBy      User?     @relation("ItemStockCloser", fields: [closedById], references: [id])
+  menuItem      MenuItem  @relation(fields: [menuItemId], references: [id])
+  openedBy      User?     @relation("ItemStockOpener", fields: [openedById], references: [id])
+
+  @@unique([date, menuItemId])
+  @@index([date])
+  @@map("daily_item_stock_snapshots")
 }
 
 enum UserRole {
@@ -380,6 +410,7 @@ enum UserRole {
 enum OrderStatus {
   COMPLETED
   CANCELLED
+  PENDING
 }
 
 enum PaymentMethod {
@@ -410,4 +441,76 @@ enum SpecialOrderStatus {
   OPEN
   RESOLVED
   CANCELLED
+}
+
+model OrderItemVoid {
+  id          String   @id @default(cuid())
+  orderId     String
+  itemName    String
+  originalQty Int
+  voidedQty   Int
+  reason      String?
+  voidedAt    DateTime @default(now())
+  voidedById  String
+  voidedBy    User     @relation(fields: [voidedById], references: [id])
+
+  @@map("order_item_voids")
+}
+
+enum PromotionType {
+  PERCENTAGE
+  FIXED_AMOUNT
+  BUY_X_GET_Y_FREE
+}
+
+model Promotion {
+  id             String          @id @default(cuid())
+  name           String
+  description    String?
+  type           PromotionType
+  value          Float
+  minOrderAmount Float?
+  startTime      String?
+  endTime        String?
+  daysOfWeek     Int[]
+  buyQuantity    Int?
+  getQuantity    Int?
+  active         Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  applicableItems PromotionItem[]
+
+  @@map("promotions")
+}
+
+model PromotionItem {
+  id          String    @id @default(cuid())
+  promotionId String
+  menuItemId  String
+  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  menuItem    MenuItem  @relation(fields: [menuItemId], references: [id])
+
+  @@unique([promotionId, menuItemId])
+  @@map("promotion_items")
+}
+
+model BusinessSettings {
+  id                   String   @id @default("singleton")
+  restaurantName       String   @default("Combo Restaurant")
+  tagline              String?
+  address              String?
+  phone                String?
+  feedbackUrl          String?
+  momoMerchantId       String?
+  momoUssdNumber       String?
+  defaultTaxRate       Float    @default(0)
+  defaultServiceCharge Float    @default(0)
+  receiptFooter        String?
+  showReceiptQR        Boolean  @default(true)
+  openingTime          String?
+  closingTime          String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@map("business_settings")
 }

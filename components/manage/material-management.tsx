@@ -13,10 +13,18 @@ import { Pills } from '@/components/ui/pills'
 import { IconButton } from '@/components/ui/icon-button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
+interface RawMaterial {
+  id: string
+  name: string
+  unit: string
+}
+
 interface MaterialCategory {
   id: string
   name: string
   unit: string
+  rawMaterialId: string | null
+  rawMaterial: RawMaterial | null
 }
 
 interface MaterialEntry {
@@ -40,6 +48,7 @@ type Unit = 'kg' | 'g' | 'L' | 'mL' | 'pcs' | 'box' | 'pack' | 'bag'
 
 export function MaterialManagement() {
   const [categories, setCategories] = useState<MaterialCategory[]>([])
+  const [rawMaterials, setRawMaterials] = useState<RawMaterial[]>([])
   const [materialData, setMaterialData] = useState<MaterialData>({ entries: [], total: 0, byCategory: {} })
   const [loading, setLoading] = useState(true)
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0])
@@ -47,6 +56,7 @@ export function MaterialManagement() {
   const [showNewCategory, setShowNewCategory] = useState(false)
   const [newCategoryName, setNewCategoryName] = useState('')
   const [newCategoryUnit, setNewCategoryUnit] = useState<Unit>('kg')
+  const [newCategoryRawMaterialId, setNewCategoryRawMaterialId] = useState<string>('')
   const [form, setForm] = useState({
     quantity: '',
     amount: '',
@@ -61,6 +71,7 @@ export function MaterialManagement() {
 
   useEffect(() => {
     fetchCategories()
+    fetchRawMaterials()
   }, [])
 
   useEffect(() => {
@@ -82,6 +93,17 @@ export function MaterialManagement() {
       }
     } catch {
       toast.error('Failed to load material categories')
+    }
+  }
+
+  const fetchRawMaterials = async () => {
+    try {
+      const response = await fetch('/api/stock/materials')
+      if (!response.ok) return
+      const data = await response.json()
+      setRawMaterials(data)
+    } catch {
+      /* silent — raw materials section may not be configured yet */
     }
   }
 
@@ -181,7 +203,11 @@ export function MaterialManagement() {
       const response = await fetch('/api/materials/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newCategoryName, unit: newCategoryUnit }),
+        body: JSON.stringify({
+          name: newCategoryName,
+          unit: newCategoryUnit,
+          rawMaterialId: newCategoryRawMaterialId || null,
+        }),
       })
       if (!response.ok) {
         const data = await response.json()
@@ -190,6 +216,7 @@ export function MaterialManagement() {
       toast.success('Category added')
       setNewCategoryName('')
       setNewCategoryUnit('kg')
+      setNewCategoryRawMaterialId('')
       setSubmittingCategory(false)
       setShowNewCategory(false)
       fetchCategories()
@@ -447,6 +474,23 @@ export function MaterialManagement() {
             />
           </div>
         </div>
+        {rawMaterials.length > 0 && (
+          <div className="space-y-1">
+            <label className="text-xs font-semibold uppercase tracking-wide text-muted">
+              Links to raw material <span className="font-normal normal-case text-muted">(optional — auto-updates stock on purchase)</span>
+            </label>
+            <Select
+              value={newCategoryRawMaterialId}
+              onChange={setNewCategoryRawMaterialId}
+              options={[
+                { value: '', label: 'None' },
+                ...rawMaterials
+                  .filter((rm) => !categories.some((c) => c.rawMaterialId === rm.id))
+                  .map((rm) => ({ value: rm.id, label: `${rm.name} (${rm.unit})` })),
+              ]}
+            />
+          </div>
+        )}
       </Modal>
 
       <ConfirmDialog

@@ -4,8 +4,10 @@ export type UserWithOrders = User & {
   orders: Order[]
 }
 
+export type MenuItemWithStock = MenuItem & { stock: number | null }
+
 export type CategoryWithItems = Category & {
-  items: MenuItem[]
+  items: MenuItemWithStock[]
 }
 
 export type OrderWithItems = Order & {
@@ -25,6 +27,9 @@ export type CartItem = {
   quantity: number
   notes?: string
   menuItemId: string
+  sides?: string[]
+  skewers?: string[]
+  skewerDeductions?: Array<{ rawMaterialId: string; amount: number }>
   takeaway?: boolean
   takeawayCharge?: number
   priceAdjustment?: number
@@ -50,8 +55,27 @@ export type DashboardStats = {
   }[]
 }
 
+export type PromotionType = 'PERCENTAGE' | 'FIXED_AMOUNT' | 'BUY_X_GET_Y_FREE'
+
+export type Promotion = {
+  id: string
+  name: string
+  description: string | null
+  type: PromotionType
+  value: number
+  minOrderAmount: number | null
+  startTime: string | null
+  endTime: string | null
+  daysOfWeek: number[]
+  buyQuantity: number | null
+  getQuantity: number | null
+  active: boolean
+  createdAt: string
+  updatedAt: string
+}
+
 export type PaymentMethod = 'CASH' | 'MOMO'
-export type OrderStatus = 'COMPLETED' | 'CANCELLED'
+export type OrderStatus = 'PENDING' | 'COMPLETED' | 'CANCELLED'
 
 export type UserWithSalaryInfo = User & {
   totalPaid: number

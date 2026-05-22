@@ -1,21 +1,29 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { CartItem } from '@/types'
 import { formatPrice } from '@/lib/utils'
-import { Minus, Plus, X, DollarSign, PackageCheck, Edit, ShoppingCart } from 'lucide-react'
+import { Minus, Plus, X, DollarSign, PackageCheck, Edit, ShoppingCart, Tag } from 'lucide-react'
 import { IconButton } from '@/components/ui/icon-button'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Pills } from '@/components/ui/pills'
 
+interface ApplicablePromotion {
+  id: string
+  name: string
+  type: string
+  value: number
+  discountAmount: number
+}
+
 interface CartProps {
   cart: CartItem[]
-  onRemoveItem: (menuItemId: string) => void
-  onUpdateQuantity: (menuItemId: string, quantity: number) => void
-  onUpdateNotes: (menuItemId: string, notes: string) => void
-  onUpdateTakeaway: (menuItemId: string, takeaway: boolean, takeawayCharge: number) => void
-  onUpdatePrice: (menuItemId: string, priceAdjustment: number, adjustmentReason: string) => void
+  onRemoveItem: (id: string) => void
+  onUpdateQuantity: (id: string, quantity: number) => void
+  onUpdateNotes: (id: string, notes: string) => void
+  onUpdateTakeaway: (id: string, takeaway: boolean, takeawayCharge: number) => void
+  onUpdatePrice: (id: string, priceAdjustment: number, adjustmentReason: string) => void
   onClearCart: () => void
   onSubmitOrder: (orderData: {
     customerName?: string
@@ -41,6 +49,7 @@ export function Cart({
   const [orderNotes, setOrderNotes] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'MOMO'>('CASH')
   const [discount, setDiscount] = useState(0)
+  const [appliedPromotion, setAppliedPromotion] = useState<ApplicablePromotion | null>(null)
   const [showCheckout, setShowCheckout] = useState(false)
   const [showPriceAdjust, setShowPriceAdjust] = useState<Record<string, boolean>>({})
 
@@ -48,6 +57,32 @@ export function Cart({
     (sum, item) => sum + (item.price + (item.priceAdjustment || 0)) * item.quantity,
     0,
   )
+
+  useEffect(() => {
+    if (!showCheckout || subtotal <= 0) return
+    fetch('/api/promotions/applicable', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        subtotal,
+        items: cart.map((i) => ({
+          menuItemId: i.menuItemId,
+          quantity: i.quantity,
+          unitPrice: i.price + (i.priceAdjustment || 0),
+        })),
+      }),
+    })
+      .then((r) => r.json())
+      .then((list: ApplicablePromotion[]) => {
+        if (list.length > 0 && discount === 0) {
+          setDiscount(list[0].discountAmount)
+          setAppliedPromotion(list[0])
+        }
+      })
+      .catch(() => {})
+  // Only run when checkout opens — not on every discount change
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showCheckout])
   const takeawayTotal = cart.reduce(
     (sum, item) => sum + (item.takeaway ? item.takeawayCharge || 0 : 0),
     0,
@@ -69,6 +104,7 @@ export function Cart({
     setCustomerPhone('')
     setOrderNotes('')
     setDiscount(0)
+    setAppliedPromotion(null)
     setShowCheckout(false)
   }
 
@@ -98,27 +134,37 @@ export function Cart({
       <div className="flex-1 space-y-3 overflow-y-auto p-4">
         {cart.map((item) => (
           <div
-            key={item.menuItemId}
+            key={item.id}
             className="rounded-lg border border-card-border bg-white p-3"
           >
-            <div className="mb-2 flex items-start justify-between gap-2">
+            <div className="mb-1 flex items-start justify-between gap-2">
               <h4 className="text-sm font-semibold text-gray-900">{item.name}</h4>
               <IconButton
                 size="sm"
                 variant="danger"
                 aria-label="Remove item"
-                onClick={() => onRemoveItem(item.menuItemId)}
+                onClick={() => onRemoveItem(item.id)}
               >
                 <X className="h-3.5 w-3.5" />
               </IconButton>
             </div>
+
+            {item.skewers?.length ? (
+              <p className="mb-1 text-xs font-medium text-amber-700">
+                {item.skewers.join(' · ')}
+              </p>
+            ) : null}
+
+            {item.sides?.length ? (
+              <p className="mb-2 text-xs text-muted">{item.sides.join(' · ')}</p>
+            ) : null}
 
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <IconButton
                   size="sm"
                   aria-label="Decrease quantity"
-                  onClick={() => onUpdateQuantity(item.menuItemId, item.quantity - 1)}
+                  onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
                 >
                   <Minus className="h-3 w-3" />
                 </IconButton>
@@ -128,7 +174,7 @@ export function Cart({
                 <IconButton
                   size="sm"
                   aria-label="Increase quantity"
-                  onClick={() => onUpdateQuantity(item.menuItemId, item.quantity + 1)}
+                  onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
                 >
                   <Plus className="h-3 w-3" />
                 </IconButton>
@@ -141,8 +187,8 @@ export function Cart({
                   )}
                 </div>
                 {item.priceAdjustment ? (
-                  <div className="text-[11px] text-amber-600">
-                    +{formatPrice(item.priceAdjustment)}/item
+                  <div className={`text-[11px] ${item.priceAdjustment < 0 ? 'text-green-600' : 'text-amber-600'}`}>
+                    {item.priceAdjustment > 0 ? '+' : ''}{formatPrice(item.priceAdjustment)}/item
                   </div>
                 ) : null}
               </div>
@@ -152,18 +198,18 @@ export function Cart({
               type="text"
               placeholder="Add notes..."
               value={item.notes || ''}
-              onChange={(e) => onUpdateNotes(item.menuItemId, e.target.value)}
+              onChange={(e) => onUpdateNotes(item.id, e.target.value)}
               className="mb-2 text-xs"
             />
 
             <label className="mb-2 flex cursor-pointer items-center gap-2 text-xs text-gray-600">
               <input
                 type="checkbox"
-                checked={showPriceAdjust[item.menuItemId] || !!item.priceAdjustment}
+                checked={showPriceAdjust[item.id] || !!item.priceAdjustment}
                 onChange={(e) => {
-                  setShowPriceAdjust((prev) => ({ ...prev, [item.menuItemId]: e.target.checked }))
+                  setShowPriceAdjust((prev) => ({ ...prev, [item.id]: e.target.checked }))
                   if (!e.target.checked) {
-                    onUpdatePrice(item.menuItemId, 0, '')
+                    onUpdatePrice(item.id, 0, '')
                   }
                 }}
                 className="h-4 w-4 rounded border-card-border text-primary-600 focus:ring-primary-500"
@@ -171,15 +217,14 @@ export function Cart({
               <Edit className="h-3.5 w-3.5 text-muted" />
               <span>Adjust price</span>
             </label>
-            {(showPriceAdjust[item.menuItemId] || !!item.priceAdjustment) && (
+            {(showPriceAdjust[item.id] || !!item.priceAdjustment) && (
               <div className="mb-2 space-y-2">
                 <Input
                   type="number"
                   placeholder="+ Amount (RWF)"
-                  min="0"
                   value={item.priceAdjustment || ''}
                   onChange={(e) =>
-                    onUpdatePrice(item.menuItemId, Number(e.target.value) || 0, item.adjustmentReason || '')
+                    onUpdatePrice(item.id, Number(e.target.value) || 0, item.adjustmentReason || '')
                   }
                   className="text-xs"
                 />
@@ -188,7 +233,7 @@ export function Cart({
                   placeholder="Reason"
                   value={item.adjustmentReason || ''}
                   onChange={(e) =>
-                    onUpdatePrice(item.menuItemId, item.priceAdjustment || 0, e.target.value)
+                    onUpdatePrice(item.id, item.priceAdjustment || 0, e.target.value)
                   }
                   className="text-xs"
                 />
@@ -201,7 +246,7 @@ export function Cart({
                   type="checkbox"
                   checked={item.takeaway || false}
                   onChange={(e) =>
-                    onUpdateTakeaway(item.menuItemId, e.target.checked, item.takeawayCharge || 0)
+                    onUpdateTakeaway(item.id, e.target.checked, item.takeawayCharge || 0)
                   }
                   className="h-4 w-4 rounded border-card-border text-primary-600 focus:ring-primary-500"
                 />
@@ -215,7 +260,7 @@ export function Cart({
                   min="0"
                   value={item.takeawayCharge || ''}
                   onChange={(e) =>
-                    onUpdateTakeaway(item.menuItemId, true, Number(e.target.value) || 0)
+                    onUpdateTakeaway(item.id, true, Number(e.target.value) || 0)
                   }
                   className="flex-1 text-xs"
                 />
@@ -234,7 +279,10 @@ export function Cart({
         )}
         {discount > 0 && (
           <div className="flex justify-between text-sm text-green-600">
-            <span>Discount</span>
+            <span className="flex items-center gap-1">
+              {appliedPromotion && <Tag className="h-3.5 w-3.5" />}
+              {appliedPromotion ? appliedPromotion.name : 'Discount'}
+            </span>
             <span className="tabular-nums">-{formatPrice(discount)}</span>
           </div>
         )}
@@ -264,12 +312,28 @@ export function Cart({
             value={orderNotes}
             onChange={(e) => setOrderNotes(e.target.value)}
           />
-          <Input
-            type="number"
-            placeholder="Discount amount"
-            value={discount || ''}
-            onChange={(e) => setDiscount(Number(e.target.value) || 0)}
-          />
+          <div className="space-y-1">
+            {appliedPromotion && (
+              <p className="flex items-center gap-1 text-xs text-green-700">
+                <Tag className="h-3 w-3" />
+                <span>
+                  <span className="font-semibold">{appliedPromotion.name}</span> auto-applied
+                  {appliedPromotion.type === 'PERCENTAGE'
+                    ? ` (${appliedPromotion.value}%)`
+                    : ''}
+                </span>
+              </p>
+            )}
+            <Input
+              type="number"
+              placeholder="Discount amount (RWF)"
+              value={discount || ''}
+              onChange={(e) => {
+                setDiscount(Number(e.target.value) || 0)
+                setAppliedPromotion(null)
+              }}
+            />
+          </div>
 
           <div className="space-y-2">
             <label className="block text-xs font-semibold uppercase tracking-wide text-muted">
@@ -287,7 +351,7 @@ export function Cart({
           </div>
 
           <Button variant="primary" size="lg" className="w-full" onClick={handleSubmit}>
-            Complete order — {formatPrice(total)}
+            Place order — {formatPrice(total)}
           </Button>
           <Button variant="outline" size="md" className="w-full" onClick={() => setShowCheckout(false)}>
             Back to cart

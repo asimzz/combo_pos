@@ -17,6 +17,7 @@ export async function GET() {
     const categories = await prisma.materialCategory.findMany({
       where: { active: true },
       orderBy: { name: 'asc' },
+      include: { rawMaterial: { select: { id: true, name: true, unit: true } } },
     })
 
     return NextResponse.json(categories)
@@ -41,11 +42,13 @@ export async function POST(request: NextRequest) {
     const schema = z.object({
       name: z.string().min(1, 'Category name is required'),
       unit: z.string().min(1, 'Unit is required').default('kg'),
+      rawMaterialId: z.string().optional().nullable(),
     })
-    const { name, unit } = schema.parse(body)
+    const { name, unit, rawMaterialId } = schema.parse(body)
 
     const category = await prisma.materialCategory.create({
-      data: { name, unit },
+      data: { name, unit, rawMaterialId: rawMaterialId || null },
+      include: { rawMaterial: { select: { id: true, name: true, unit: true } } },
     })
 
     return NextResponse.json(category, { status: 201 })

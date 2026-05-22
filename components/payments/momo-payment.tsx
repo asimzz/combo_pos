@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { QrCode, Smartphone, AlertCircle, CheckCircle, Clock } from 'lucide-react'
 import QRCode from 'qrcode'
 import { Button } from '@/components/ui/button'
@@ -36,9 +36,19 @@ export function MomoPayment({
   const [phoneNumber, setPhoneNumber] = useState(customerPhone)
   const [timeLeft, setTimeLeft] = useState(300) // 5 minutes
   const [showQR, setShowQR] = useState(true)
+  const merchantIdRef = useRef('COMBO_RESTAURANT_001')
+  const ussdNumberRef = useRef('7919494')
 
   useEffect(() => {
-    generatePaymentCodes()
+    const init = async () => {
+      try {
+        const data = await fetch('/api/settings').then((r) => r.json())
+        if (data.momoMerchantId) merchantIdRef.current = data.momoMerchantId
+        if (data.momoUssdNumber) ussdNumberRef.current = data.momoUssdNumber
+      } catch {}
+      generatePaymentCodes(merchantIdRef.current, ussdNumberRef.current)
+    }
+    init()
     startPaymentStatusPolling()
     startTimer()
   }, [])
@@ -49,23 +59,13 @@ export function MomoPayment({
     }
   }, [timeLeft])
 
-  const generatePaymentCodes = async () => {
+  const generatePaymentCodes = async (merchantId: string, ussdNumber: string) => {
     try {
-      // In a real implementation, this would call the MTN MoMo API to generate payment request
-      // For now, we'll simulate the payment codes
-
-      // Generate USSD code for manual dialing
-      const ussd = `*182*7*1*${amount}*${orderNumber}#`
+      const ussd = `*182*8*1*${ussdNumber}*${amount}#`
       setUssdCode(ussd)
 
-      // Generate QR code with MoMo payment data
-      // This would typically contain:
-      // - Merchant ID
-      // - Amount
-      // - Transaction reference
-      // - Callback URL
       const momoPaymentData = {
-        merchant_id: 'COMBO_RESTAURANT_001',
+        merchant_id: merchantId,
         amount: amount,
         currency: 'RWF',
         reference: orderNumber,
@@ -297,7 +297,7 @@ export function MomoPayment({
             className="flex-1"
             onClick={() => {
               setPaymentStatus({ status: 'pending' })
-              generatePaymentCodes()
+              generatePaymentCodes(merchantIdRef.current, ussdNumberRef.current)
             }}
           >
             Try again

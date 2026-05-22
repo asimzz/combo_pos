@@ -6,14 +6,16 @@ import { redirect } from 'next/navigation'
 import { PageSkeleton } from '@/components/skeletons/page-skeleton'
 import { MenuManagement } from '@/components/manage/menu-management'
 import { CategoryManagement } from '@/components/manage/category-management'
+import { RecipeManagement } from '@/components/manage/recipe-management'
 import { useTabs, type TabDef } from '@/lib/use-tabs'
 
-type TabType = 'items' | 'categories'
+type TabType = 'items' | 'categories' | 'recipes'
 
 function CatalogPageInner() {
   const tabs: TabDef<TabType>[] = [
     { id: 'items', label: 'Items' },
     { id: 'categories', label: 'Categories' },
+    { id: 'recipes', label: 'Recipes' },
   ]
 
   const { strip, activeTab } = useTabs<TabType>({
@@ -27,7 +29,7 @@ function CatalogPageInner() {
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Catalog</h1>
           <p className="mt-1 text-sm text-muted">
-            Manage menu items and categories.
+            Manage menu items, categories, and recipes.
           </p>
         </div>
 
@@ -36,6 +38,7 @@ function CatalogPageInner() {
         <div className="rounded-xl border border-card-border bg-white">
           {activeTab === 'items' && <MenuManagement />}
           {activeTab === 'categories' && <CategoryManagement />}
+          {activeTab === 'recipes' && <RecipeManagement />}
         </div>
       </div>
     </div>

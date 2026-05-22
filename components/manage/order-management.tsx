@@ -1,17 +1,16 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useSession } from 'next-auth/react'
 import { OrderWithItems } from '@/types'
 import { formatPrice, formatDate } from '@/lib/utils'
-import { Clock, User, Search, RefreshCw, Printer, Receipt, MoreHorizontal } from 'lucide-react'
+import { Clock, User, Search, RefreshCw, Printer, Receipt, Truck, UtensilsCrossed, Trash2 } from 'lucide-react'
 import { CustomerReceipt } from '@/components/receipts/customer-receipt'
 import { KitchenReceipt } from '@/components/receipts/kitchen-receipt'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Pills } from '@/components/ui/pills'
-import { DropdownMenu } from '@/components/ui/dropdown-menu'
-import { IconButton } from '@/components/ui/icon-button'
 import { Modal } from '@/components/ui/modal'
 import { toast } from 'sonner'
 
@@ -19,12 +18,27 @@ type Variant = 'neutral' | 'success' | 'warning' | 'danger' | 'info' | 'brand'
 
 function statusVariant(status: string): Variant {
   switch (status) {
+    case 'PENDING':
+      return 'warning'
     case 'COMPLETED':
       return 'success'
     case 'CANCELLED':
       return 'danger'
     default:
       return 'neutral'
+  }
+}
+
+function statusLabel(status: string): string {
+  switch (status) {
+    case 'PENDING':
+      return 'Pending'
+    case 'COMPLETED':
+      return 'Completed'
+    case 'CANCELLED':
+      return 'Cancelled'
+    default:
+      return status
   }
 }
 
@@ -39,11 +53,12 @@ function paymentVariant(status: string): Variant {
   }
 }
 
-function getNextStatuses(currentStatus: string): string[] {
-  return currentStatus === 'COMPLETED' ? ['CANCELLED'] : []
-}
+type VoidTarget = { orderId: string; itemId: string; itemName: string }
 
 export function OrderManagement() {
+  const { data: session } = useSession()
+  const canVoid = session?.user?.role === 'MANAGER' || session?.user?.role === 'ADMIN'
+
   const [orders, setOrders] = useState<OrderWithItems[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -51,6 +66,9 @@ export function OrderManagement() {
   const [updatingOrder, setUpdatingOrder] = useState<string | null>(null)
   const [printingOrder, setPrintingOrder] = useState<OrderWithItems | null>(null)
   const [printType, setPrintType] = useState<'customer' | 'kitchen' | null>(null)
+  const [voidTarget, setVoidTarget] = useState<VoidTarget | null>(null)
+  const [voidReason, setVoidReason] = useState('')
+  const [voidingItem, setVoidingItem] = useState(false)
 
   useEffect(() => {
     fetchOrders()
@@ -81,8 +99,9 @@ export function OrderManagement() {
 
       if (!response.ok) throw new Error('Failed to update order status')
 
-      toast.success(newStatus === 'CANCELLED' ? 'Order cancelled' : `Order moved to ${newStatus.toLowerCase()}`)
-      await fetchOrders()
+      const updatedOrder = await response.json()
+      setOrders(prev => prev.map(o => o.id === orderId ? updatedOrder : o))
+      toast.success(newStatus === 'CANCELLED' ? 'Order cancelled' : 'Order completed')
     } catch (error) {
       toast.error('Failed to update order status')
     } finally {
@@ -111,6 +130,34 @@ export function OrderManagement() {
     setPrintType(null)
   }
 
+  const voidOrderItem = async () => {
+    if (!voidTarget) return
+    setVoidingItem(true)
+    try {
+      const response = await fetch(
+        `/api/orders/${voidTarget.orderId}/items/${voidTarget.itemId}`,
+        {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason: voidReason || undefined }),
+        }
+      )
+      if (!response.ok) {
+        const err = await response.json()
+        throw new Error(err.error || 'Failed to void item')
+      }
+      const updatedOrder: OrderWithItems = await response.json()
+      setOrders(prev => prev.map(o => o.id === voidTarget.orderId ? updatedOrder : o))
+      toast.success(`${voidTarget.itemName} voided`)
+      setVoidTarget(null)
+      setVoidReason('')
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Failed to void item')
+    } finally {
+      setVoidingItem(false)
+    }
+  }
+
   return (
     <div className="space-y-4 p-6">
       <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
@@ -119,6 +166,7 @@ export function OrderManagement() {
           onChange={setStatusFilter}
           options={[
             { value: 'ALL', label: 'All' },
+            { value: 'PENDING', label: 'Pending' },
             { value: 'COMPLETED', label: 'Completed' },
             { value: 'CANCELLED', label: 'Cancelled' },
           ]}
@@ -162,17 +210,25 @@ export function OrderManagement() {
           </div>
         ) : (
           filteredOrders.map((order) => {
-            const nextStatuses = getNextStatuses(order.status)
+            const isPending = order.status === 'PENDING'
+            const isDelivery = order.notes?.includes('Takeaway:') ?? false
             return (
               <div
                 key={order.id}
                 className="rounded-xl border border-card-border bg-white p-5 transition-shadow hover:shadow-sm"
               >
                 <div className="mb-3 flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 flex-wrap">
                     <h4 className="text-base font-semibold text-gray-900">#{order.orderNumber}</h4>
                     <Badge variant={statusVariant(order.status)} size="sm">
-                      {updatingOrder === order.id ? 'Updating…' : order.status}
+                      {updatingOrder === order.id ? 'Updating…' : statusLabel(order.status)}
+                    </Badge>
+                    <Badge variant={isDelivery ? 'info' : 'neutral'} size="sm">
+                      {isDelivery ? (
+                        <span className="flex items-center gap-1"><Truck className="h-3 w-3" /> For delivery</span>
+                      ) : (
+                        <span className="flex items-center gap-1"><UtensilsCrossed className="h-3 w-3" /> In house</span>
+                      )}
                     </Badge>
                   </div>
                   <div className="flex items-center gap-3">
@@ -181,33 +237,42 @@ export function OrderManagement() {
                         {formatPrice(Number(order.total))}
                       </div>
                       <div className="text-xs text-muted">
-                        {formatDate(new Date(order.createdAt))}
+                        {order.status === 'COMPLETED' && order.completedAt ? (
+                          <>
+                            <span>Done in {Math.round((new Date(order.completedAt).getTime() - new Date(order.createdAt).getTime()) / 60000)} min</span>
+                            <span className="mx-1">·</span>
+                            <span>{formatDate(new Date(order.completedAt))}</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="mr-1">Created</span>
+                            <span>{formatDate(new Date(order.createdAt))}</span>
+                          </>
+                        )}
                       </div>
                     </div>
-                    {nextStatuses.length > 0 ? (
-                      <DropdownMenu>
-                        <DropdownMenu.Trigger
-                          aria-label="Order actions"
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-gray-500 transition-colors hover:bg-surface hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500/30"
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </DropdownMenu.Trigger>
-                        <DropdownMenu.Content align="end" width="11rem">
-                          <DropdownMenu.Label>Actions</DropdownMenu.Label>
-                          {nextStatuses.map((s) => (
-                            <DropdownMenu.Item
-                              key={s}
-                              variant={s === 'CANCELLED' ? 'danger' : 'primary'}
-                              onSelect={() => updateOrderStatus(order.id, s)}
-                            >
-                              {s === 'CANCELLED' ? 'Cancel order' : `Move to ${s.toLowerCase()}`}
-                            </DropdownMenu.Item>
-                          ))}
-                        </DropdownMenu.Content>
-                      </DropdownMenu>
-                    ) : null}
                   </div>
                 </div>
+                {isPending && (
+                  <div className="mb-3 flex gap-2">
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      disabled={updatingOrder === order.id}
+                      onClick={() => updateOrderStatus(order.id, 'COMPLETED')}
+                    >
+                      Complete
+                    </Button>
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      disabled={updatingOrder === order.id}
+                      onClick={() => updateOrderStatus(order.id, 'CANCELLED')}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                )}
 
                 {(order.customerName || order.customerPhone) && (
                   <div className="mb-3 flex items-center gap-2 text-sm text-muted">
@@ -234,11 +299,23 @@ export function OrderManagement() {
                           <p className="mt-0.5 text-xs italic text-muted">Note: {item.notes}</p>
                         )}
                       </div>
-                      <div className="text-right">
-                        <div className="text-sm font-semibold tabular-nums">×{item.quantity}</div>
-                        <div className="text-xs text-muted tabular-nums">
-                          {formatPrice(Number(item.total))}
+                      <div className="flex items-center gap-2 text-right">
+                        <div>
+                          <div className="text-sm font-semibold tabular-nums">×{item.quantity}</div>
+                          <div className="text-xs text-muted tabular-nums">
+                            {formatPrice(Number(item.total))}
+                          </div>
                         </div>
+                        {isPending && canVoid && (
+                          <button
+                            type="button"
+                            title="Void item"
+                            onClick={() => setVoidTarget({ orderId: order.id, itemId: item.id, itemName: item.menuItem.name })}
+                            className="rounded p-1 text-muted transition-colors hover:bg-red-50 hover:text-red-600"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -294,6 +371,33 @@ export function OrderManagement() {
           })
         )}
       </div>
+
+      <Modal
+        open={!!voidTarget}
+        onClose={() => { setVoidTarget(null); setVoidReason('') }}
+        title="Void Item"
+        footer={
+          <>
+            <Button variant="outline" disabled={voidingItem} onClick={() => { setVoidTarget(null); setVoidReason('') }}>
+              Cancel
+            </Button>
+            <Button variant="danger" loading={voidingItem} disabled={voidingItem} onClick={voidOrderItem}>
+              {voidingItem ? 'Voiding…' : 'Void Item'}
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-gray-700">
+          Remove <span className="font-semibold">{voidTarget?.itemName}</span> from this order? This will be logged for accountability.
+        </p>
+        <Input
+          type="text"
+          placeholder="Reason (optional)"
+          value={voidReason}
+          onChange={(e) => setVoidReason(e.target.value)}
+          className="mt-3"
+        />
+      </Modal>
 
       <Modal
         open={!!printingOrder}

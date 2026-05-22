@@ -7,6 +7,7 @@ import {
   generateDailyOrderNumber,
 } from "@/lib/utils";
 import { z } from "zod";
+import { broadcastOrderEvent } from "@/lib/order-events";
 
 export const dynamic = 'force-dynamic'
 
@@ -19,6 +20,10 @@ const createOrderSchema = z.object({
       quantity: z.number().min(1),
       unitPrice: z.number().min(0).optional(),
       notes: z.string().optional(),
+      skewerDeductions: z.array(z.object({
+        rawMaterialId: z.string(),
+        amount: z.number().min(0),
+      })).optional(),
     }),
   ),
   customerName: z.string().optional(),
@@ -27,6 +32,7 @@ const createOrderSchema = z.object({
   paymentMethod: z.enum(["CASH", "MOMO"]),
   discount: z.number().min(0).default(0),
   serviceCharge: z.number().min(0).default(0),
+  isDelivery: z.boolean().default(false),
 });
 
 export async function POST(request: NextRequest) {
@@ -34,15 +40,7 @@ export async function POST(request: NextRequest) {
     const auth = await authenticate(request);
     if (auth instanceof NextResponse) return auth;
 
-    const user = await prisma.user.findUnique({
-      where: { id: auth.userId },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const orderUserId = user.id;
+    const orderUserId = auth.userId;
 
     const body = await request.json();
     const data = createOrderSchema.parse(body);
@@ -93,7 +91,7 @@ export async function POST(request: NextRequest) {
         total,
         paymentMethod: data.paymentMethod,
         paymentStatus: "COMPLETED",
-        status: "COMPLETED",
+        status: "PENDING",
         orderItems: {
           create: orderItems,
         },
@@ -120,6 +118,61 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    broadcastOrderEvent('order.new', order);
+
+    // Deduct stock — recipe items from shared material pools, non-recipe from item snapshots
+    const today = new Date().toISOString().split('T')[0]
+    const orderItemIds = data.items.map((i) => i.menuItemId)
+
+    // Items with explicit skewer deductions skip the RawMaterialUsage lookup
+    const skewerItemIds = new Set(
+      data.items.filter((i) => i.skewerDeductions && i.skewerDeductions.length > 0).map((i) => i.menuItemId)
+    )
+
+    const recipes = await prisma.rawMaterialUsage.findMany({
+      where: { menuItemId: { in: orderItemIds.filter((id) => !skewerItemIds.has(id)) } },
+      select: { menuItemId: true, rawMaterialId: true, quantity: true },
+    })
+    const recipeItemIds = new Set(recipes.map((r) => r.menuItemId))
+
+    // Aggregate raw material deductions across all recipe order items
+    const poolDeductions = new Map<string, number>()
+    for (const orderItem of data.items) {
+      // Explicit skewer deductions take priority
+      if (skewerItemIds.has(orderItem.menuItemId)) {
+        for (const d of orderItem.skewerDeductions!) {
+          poolDeductions.set(d.rawMaterialId, (poolDeductions.get(d.rawMaterialId) ?? 0) + d.amount * orderItem.quantity)
+        }
+        continue
+      }
+      if (!recipeItemIds.has(orderItem.menuItemId)) continue
+      for (const recipe of recipes.filter((r) => r.menuItemId === orderItem.menuItemId)) {
+        poolDeductions.set(
+          recipe.rawMaterialId,
+          (poolDeductions.get(recipe.rawMaterialId) ?? 0) + recipe.quantity * orderItem.quantity,
+        )
+      }
+    }
+
+    await Promise.all([
+      // Pool deductions (recipe items)
+      ...Array.from(poolDeductions.entries()).map(([rawMaterialId, amount]) =>
+        prisma.rawMaterialDailyStock.updateMany({
+          where: { date: today, rawMaterialId },
+          data: { currentStock: { decrement: amount } },
+        }),
+      ),
+      // Snapshot deductions (non-recipe items, excluding skewer items handled above)
+      ...data.items
+        .filter((i) => !recipeItemIds.has(i.menuItemId) && !skewerItemIds.has(i.menuItemId))
+        .map((item) =>
+          prisma.dailyItemStockSnapshot.updateMany({
+            where: { date: today, menuItemId: item.menuItemId, currentStock: { not: null } },
+            data: { currentStock: { decrement: item.quantity } },
+          }),
+        ),
+    ])
+
     return NextResponse.json(order);
   } catch (error) {
     console.error("Error creating order:", error);
@@ -132,10 +185,7 @@ export async function POST(request: NextRequest) {
     if (error instanceof OrderValidationError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
-    return NextResponse.json(
-      { error: "Failed to create order" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Failed to create order" }, { status: 500 });
   }
 }
 

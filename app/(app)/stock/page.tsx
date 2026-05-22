@@ -13,7 +13,7 @@ function StockPageInner() {
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Stock</h1>
           <p className="mt-1 text-sm text-muted">
-            Raw material stock with daily opening and closing balances.
+            Daily menu item counts — open at the start of service, close at the end.
           </p>
         </div>
 

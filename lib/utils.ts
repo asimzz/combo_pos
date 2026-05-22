@@ -5,13 +5,15 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+const rwfFormatter = new Intl.NumberFormat('rw-RW', {
+  style: 'currency',
+  currency: 'RWF',
+  minimumFractionDigits: 0,
+  maximumFractionDigits: 0,
+})
+
 export function formatPrice(price: number): string {
-  return new Intl.NumberFormat('rw-RW', {
-    style: 'currency',
-    currency: 'RWF',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(price)
+  return rwfFormatter.format(price)
 }
 
 export function generateOrderNumber(): string {

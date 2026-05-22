@@ -12,6 +12,54 @@ interface KitchenReceiptProps {
   showPrintButton?: boolean;
 }
 
+interface ParsedNotes {
+  skewers: string | null;
+  sides: string | null;
+  takeaway: string | null;
+  userNotes: string | null;
+}
+
+function parseItemNotes(notes: string): ParsedNotes {
+  let text = notes.trim();
+
+  let takeaway: string | null = null;
+  const taMatch = text.match(/\[TAKEAWAY([^\]]*)\]/i);
+  if (taMatch) {
+    const extra = taMatch[1].trim();
+    takeaway = extra ? `TAKEAWAY ${extra}` : "TAKEAWAY";
+    text = text.replace(taMatch[0], "").trim();
+  }
+
+  text = text.replace(/\[Price[^\]]*\]/gi, "").trim();
+
+  let skewers: string | null = null;
+  const skMatch = text.match(/Skewers:\s*(.+?)(?=\s+Sides:\s|$)/i);
+  if (skMatch) {
+    skewers = skMatch[1].trim();
+    text = (text.slice(0, skMatch.index) + text.slice(skMatch.index! + skMatch[0].length)).trim();
+  }
+
+  let sides: string | null = null;
+  const siMatch = text.match(/Sides:\s*(.+)$/i);
+  if (siMatch) {
+    sides = siMatch[1].trim();
+    text = (text.slice(0, siMatch.index) + text.slice(siMatch.index! + siMatch[0].length)).trim();
+  }
+
+  return { skewers, sides, takeaway, userNotes: text || null };
+}
+
+function aggregateSkewers(skewersStr: string): string {
+  const counts: Record<string, number> = {};
+  for (const part of skewersStr.split(/,\s*/)) {
+    const t = part.trim();
+    if (t) counts[t] = (counts[t] || 0) + 1;
+  }
+  return Object.entries(counts)
+    .map(([type, count]) => `${count}x ${type}`)
+    .join(", ");
+}
+
 export function KitchenReceipt({
   order,
   onPrint,
@@ -103,11 +151,32 @@ export function KitchenReceipt({
                       <div className="item-name text-xs font-medium">
                         {item.quantity}x {item.menuItem.name}
                       </div>
-                      {item.notes && (
-                        <div className="notes text-xs text-red-600 font-medium mt-1">
-                          ⚠ SPECIAL: {item.notes}
-                        </div>
-                      )}
+                      {item.notes && (() => {
+                        const p = parseItemNotes(item.notes);
+                        return (
+                          <div className="notes mt-3 space-y-1 text-xs text-red-600 font-medium leading-relaxed">
+                            <div>⚠ SPECIAL</div>
+                            {p.skewers && (
+                              <>
+                                <div className="font-bold uppercase pt-1">Skewers</div>
+                                <div>{aggregateSkewers(p.skewers)}</div>
+                              </>
+                            )}
+                            {p.sides && (
+                              <>
+                                <div className="font-bold uppercase pt-1">Sides</div>
+                                <div>{p.sides}</div>
+                              </>
+                            )}
+                            {p.takeaway && (
+                              <div className="font-bold pt-1">{p.takeaway}</div>
+                            )}
+                            {p.userNotes && (
+                              <div className="pt-1">{p.userNotes}</div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -154,7 +223,7 @@ export function KitchenReceipt({
             visibility: visible;
           }
           .print-receipt {
-            position: absolute;
+            position: fixed;
             left: 0;
             top: 0;
             width: 58mm;

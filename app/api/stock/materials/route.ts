@@ -6,6 +6,26 @@ import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
 
+export async function GET() {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user || (session.user.role !== 'ADMIN' && session.user.role !== 'MANAGER')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const materials = await prisma.rawMaterial.findMany({
+      where: { active: true },
+      orderBy: { name: 'asc' },
+      select: { id: true, name: true, unit: true, stock: true },
+    })
+
+    return NextResponse.json(materials)
+  } catch (error) {
+    console.error('Error fetching raw materials:', error)
+    return NextResponse.json({ error: 'Failed to fetch materials' }, { status: 500 })
+  }
+}
+
 const createSchema = z.object({
   name: z.string().min(1).max(100),
   unit: z.string().min(1).max(20),

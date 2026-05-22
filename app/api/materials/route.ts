@@ -79,21 +79,35 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = createMaterialSchema.parse(body)
 
-    const entry = await prisma.materialEntry.create({
-      data: {
-        quantity: validatedData.quantity || null,
-        amount: validatedData.amount,
-        description: validatedData.description || null,
-        categoryId: validatedData.categoryId,
-        date: validatedData.date ? new Date(validatedData.date + 'T00:00:00.000Z') : new Date(),
-        userId: session.user.id,
-      },
-      include: {
-        category: true,
-        user: {
-          select: { name: true },
+    const category = await prisma.materialCategory.findUnique({
+      where: { id: validatedData.categoryId },
+      select: { rawMaterialId: true },
+    })
+
+    const entry = await prisma.$transaction(async (tx) => {
+      const created = await tx.materialEntry.create({
+        data: {
+          quantity: validatedData.quantity || null,
+          amount: validatedData.amount,
+          description: validatedData.description || null,
+          categoryId: validatedData.categoryId,
+          date: validatedData.date ? new Date(validatedData.date + 'T00:00:00.000Z') : new Date(),
+          userId: session.user.id,
         },
-      },
+        include: {
+          category: true,
+          user: { select: { name: true } },
+        },
+      })
+
+      if (category?.rawMaterialId && validatedData.quantity) {
+        await tx.rawMaterial.update({
+          where: { id: category.rawMaterialId },
+          data: { stock: { increment: validatedData.quantity } },
+        })
+      }
+
+      return created
     })
 
     return NextResponse.json(entry, { status: 201 })
