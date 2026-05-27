@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { signIn } from 'next-auth/react'
+import { signIn, useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
@@ -14,6 +14,7 @@ export default function SignInPage() {
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const router = useRouter()
+  const { update } = useSession()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -34,6 +35,7 @@ export default function SignInPage() {
       if (result?.error) {
         toast.error('Invalid credentials')
       } else {
+        await update()
         toast.success('Signed in successfully!')
         router.push('/sell')
       }

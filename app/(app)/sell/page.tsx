@@ -1,8 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useSession } from 'next-auth/react'
-import { redirect } from 'next/navigation'
 import { CategoryWithItems, CartItem, OrderWithItems } from '@/types'
 import { MenuGrid } from '@/components/pos/menu-grid'
 import { Cart } from '@/components/pos/cart'
@@ -22,7 +20,6 @@ import { formatPrice } from '@/lib/utils'
 import type { MenuItem } from '@prisma/client'
 
 export default function SellPage() {
-  const { data: session, status } = useSession()
   const [categories, setCategories] = useState<CategoryWithItems[]>([])
   const [cart, setCart] = useState<CartItem[]>([])
   const [loading, setLoading] = useState(true)
@@ -32,13 +29,6 @@ export default function SellPage() {
   const [pendingSkewerSelection, setPendingSkewerSelection] = useState<SkewerSelection | null>(null)
   const [lastOrder, setLastOrder] = useState<OrderWithItems | null>(null)
   const [reprintType, setReprintType] = useState<'customer' | 'kitchen' | null>(null)
-
-  useEffect(() => {
-    if (status === 'loading') return
-    if (!session) {
-      redirect('/auth/signin')
-    }
-  }, [session, status])
 
   useEffect(() => {
     fetchMenu()
@@ -232,7 +222,7 @@ export default function SellPage() {
     }
   }
 
-  if (status === 'loading' || loading) {
+  if (loading) {
     return <SellSkeleton />
   }
 

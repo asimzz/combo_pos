@@ -45,12 +45,8 @@ function ExpensesPageInner() {
 export default function ExpensesPage() {
   const { data: session, status } = useSession()
 
-  if (status === 'loading') {
+  if (status === 'loading' || !session) {
     return <PageSkeleton columns={4} />
-  }
-
-  if (!session) {
-    redirect('/auth/signin')
   }
 
   if (session.user.role !== 'ADMIN') {

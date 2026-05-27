@@ -54,12 +54,8 @@ function SettingsPageInner() {
 export default function SettingsPage() {
   const { data: session, status } = useSession()
 
-  if (status === 'loading') {
+  if (status === 'loading' || !session) {
     return <PageSkeleton rows={3} columns={2} />
-  }
-
-  if (!session) {
-    redirect('/auth/signin')
   }
 
   if (session.user.role !== 'ADMIN') {

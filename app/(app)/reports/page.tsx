@@ -36,8 +36,8 @@ export default function ReportsPage() {
   const [reportKey, setReportKey] = useState(0)
 
   useEffect(() => {
-    if (status === 'loading') return
-    if (!session || session.user.role === 'STAFF') {
+    if (status === 'loading' || !session) return
+    if (session.user.role === 'STAFF') {
       redirect('/sell')
     }
   }, [session, status])

@@ -48,12 +48,8 @@ function CatalogPageInner() {
 export default function CatalogPage() {
   const { data: session, status } = useSession()
 
-  if (status === 'loading') {
+  if (status === 'loading' || !session) {
     return <PageSkeleton columns={5} />
-  }
-
-  if (!session) {
-    redirect('/auth/signin')
   }
 
   if (session.user.role === 'STAFF') {

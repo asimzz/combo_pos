@@ -1,21 +1,6 @@
-'use client'
-
-import { useSession } from 'next-auth/react'
-import { redirect } from 'next/navigation'
 import { OrderManagement } from '@/components/manage/order-management'
-import { PageSkeleton } from '@/components/skeletons/page-skeleton'
 
 export default function OrdersPage() {
-  const { data: session, status } = useSession()
-
-  if (status === 'loading') {
-    return <PageSkeleton columns={3} />
-  }
-
-  if (!session) {
-    redirect('/auth/signin')
-  }
-
   return (
     <div className="px-4 py-8 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">

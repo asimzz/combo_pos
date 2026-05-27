@@ -25,8 +25,8 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (status === 'loading') return
-    if (!session || session.user.role === 'STAFF') {
+    if (status === 'loading' || !session) return
+    if (session.user.role === 'STAFF') {
       redirect('/sell')
     }
   }, [session, status])
